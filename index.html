@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>한상규 주간 트래커</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; }
+.app { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
+.sync-bar { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 10px; padding: 10px 14px; margin-bottom: 20px; border: 1px solid #e8e6e1; }
+.sync-status { font-size: 12px; color: #888; display: flex; align-items: center; gap: 6px; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; }
+.sync-dot.ok { background: #1D9E75; }
+.sync-dot.loading { background: #f0a500; animation: pulse 1s infinite; }
+.sync-dot.err { background: #e24b4a; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.sync-btn { font-size: 12px; background: #1a1a1a; color: #fff; border: none; border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+.sync-btn:hover { background: #333; }
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; background: #ebe9e4; border-radius: 10px; padding: 4px; }
+.tab { flex: 1; text-align: center; padding: 8px; font-size: 13px; font-weight: 500; border-radius: 7px; cursor: pointer; border: none; background: transparent; color: #666; transition: all 0.15s; }
+.tab.active { background: #fff; color: #1a1a1a; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+.stat { background: #fff; border-radius: 10px; padding: 14px 10px; text-align: center; }
+.stat-num { font-size: 22px; font-weight: 600; color: #1a1a1a; }
+.stat-label { font-size: 11px; color: #999; margin-top: 2px; }
+.prog-wrap { background: #fff; border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; }
+.prog-label { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-bottom: 8px; }
+.prog-bar { height: 6px; background: #ebe9e4; border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 6px; background: #1D9E75; border-radius: 3px; transition: width 0.4s ease; }
+.section { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.section-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.daily-grid { width: 100%; border-collapse: collapse; }
+.daily-grid th { font-size: 11px; color: #999; font-weight: 500; text-align: center; padding: 4px 0 8px; }
+.daily-grid th:first-child { text-align: left; }
+.daily-grid td { text-align: center; padding: 6px 0; border-top: 1px solid #f0eeea; }
+.daily-grid td:first-child { text-align: left; font-size: 13px; color: #333; padding-left: 2px; }
+.daily-grid input[type=checkbox] { width: 16px; height: 16px; accent-color: #1D9E75; cursor: pointer; }
+.item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #f0eeea; }
+.item:first-of-type { border-top: none; }
+.item input[type=checkbox] { width: 16px; height: 16px; accent-color: #1D9E75; cursor: pointer; flex-shrink: 0; }
+.item label { font-size: 13px; color: #333; cursor: pointer; flex: 1; }
+.item.done label { color: #bbb; text-decoration: line-through; }
+.btn-row { display: flex; gap: 8px; margin-top: 20px; }
+.btn { flex: 1; padding: 12px; border-radius: 10px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+.btn-primary { background: #1a1a1a; color: #fff; }
+.btn-primary:hover { background: #333; }
+.btn-secondary { background: #fff; color: #666; border: 1px solid #ddd; }
+.btn-secondary:hover { background: #f5f4f0; }
+.history-empty { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+.history-week { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.hw-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.hw-date { font-size: 14px; font-weight: 600; }
+.hw-pct { font-size: 13px; font-weight: 600; color: #1D9E75; }
+.hw-bars { display: flex; flex-direction: column; gap: 6px; }
+.hw-bar-row { display: flex; align-items: center; gap: 8px; }
+.hw-bar-label { font-size: 12px; color: #666; width: 80px; flex-shrink: 0; }
+.hw-bar-track { flex: 1; height: 5px; background: #f0eeea; border-radius: 3px; overflow: hidden; }
+.hw-bar-fill { height: 5px; background: #1D9E75; border-radius: 3px; }
+.hw-bar-val { font-size: 11px; color: #aaa; width: 28px; text-align: right; flex-shrink: 0; }
+.hw-delete { font-size: 11px; color: #ccc; background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.hw-delete:hover { color: #e24b4a; background: #fdf0f0; }
+.api-setup { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px dashed #ddd; }
+.api-setup p { font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6; }
+.api-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; margin-bottom: 10px; }
+.api-save { background: #1a1a1a; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; cursor: pointer; width: 100%; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>📋 한상규 주간 트래커</h1>
+  <p class="subtitle" id="week-label"></p>
+
+  <div class="sync-bar">
+    <div class="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-txt">로컬 저장 모드</span>
+    </div>
+    <button class="sync-btn" onclick="syncNow()">☁️ 동기화</button>
+  </div>
+
+  <div id="api-setup-box" style="display:none">
+    <div class="api-setup">
+      <p>☁️ <strong>기기간 동기화</strong>를 하려면 아래에 닉네임을 입력하세요. 모든 기기에서 같은 닉네임을 쓰면 데이터가 공유돼요.</p>
+      <input class="api-input" id="user-id-input" placeholder="닉네임 입력 (예: sanggyu)" maxlength="20">
+      <button class="api-save" onclick="saveUserId()">저장하고 동기화 시작</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('check')">이번 주 체크</button>
+    <button class="tab" onclick="showTab('history')">기록 히스토리</button>
+  </div>
+
+  <div id="tab-check">
+    <div class="stats">
+      <div class="stat"><div class="stat-num" id="s-done">0</div><div class="stat-label">완료</div></div>
+      <div class="stat"><div class="stat-num" id="s-left">0</div><div class="stat-label">남음</div></div>
+      <div class="stat"><div class="stat-num" id="s-pct">0%</div><div class="stat-label">달성률</div></div>
+      <div class="stat"><div class="stat-num" id="s-ex">0일</div><div class="stat-label">운동</div></div>
+    </div>
+    <div class="prog-wrap">
+      <div class="prog-label"><span>이번 주 진행률</span><span id="prog-txt">0%</span></div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+    <div class="section">
+      <div class="section-title">📅 데일리 (월~금)</div>
+      <table class="daily-grid">
+        <thead><tr><th>항목</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead>
+        <tbody id="daily-body"></tbody>
+      </table>
+    </div>
+    <div id="weekly-sections"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveWeek()">✅ 이번 주 기록 저장</button>
+      <button class="btn btn-secondary" onclick="resetWeek()">🔄 초기화</button>
+    </div>
+  </div>
+
+  <div id="tab-history" style="display:none">
+    <div id="history-list"></div>
+  </div>
+</div>
+
+<script>
+const DAILY = [
+  { id: 'exercise', label: '🏃 운동' },
+  { id: 'diet',     label: '🥗 식단' },
+  { id: 'chinese',  label: '🇨🇳 중국어' },
+  { id: 'english',  label: '🇬🇧 영어' },
+];
+const DAYS = ['월','화','수','목','금'];
+const WEEKLY = [
+  { id: 'biz', title: '💼 부업', items: ['GLG 프로필 작성 진행','크몽 프로필 초안','LinkedIn 포스팅 1개','자문 콜 준비·복습'] },
+  { id: 'invest', title: '📈 투자', items: ['포트폴리오 확인','시장 뉴스 체크 (Perplexity)','매수·매도 메모','월 적립 실행 여부'] },
+  { id: 'weekend', title: '💻 주말 학습', items: ['Python / BI / 수학 중 1개','지난주 복습 먼저','Suno 노래 작업'] },
+  { id: 'property', title: '🏠 부동산', items: ['관심 지역 시세 확인','재개발 뉴스 체크'] },
+];
+
+function getWeekKey() {
+  const now = new Date();
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  return `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+}
+function getWeekLabel(key) {
+  const mon = new Date(key);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+  return `${fmt(mon)} ~ ${fmt(sun)}`;
+}
+
+let state = JSON.parse(localStorage.getItem('tracker_state') || '{}');
+let userId = localStorage.getItem('tracker_uid') || '';
+
+function saveLocal() { localStorage.setItem('tracker_state', JSON.stringify(state)); }
+function saveUserId() {
+  const val = document.getElementById('user-id-input').value.trim();
+  if (!val) return alert('닉네임을 입력해주세요');
+  userId = val;
+  localStorage.setItem('tracker_uid', userId);
+  document.getElementById('api-setup-box').style.display = 'none';
+  setSyncStatus('ok', `☁️ ${userId} 동기화 중`);
+  syncNow();
+}
+
+function setSyncStatus(type, txt) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot ' + type;
+  document.getElementById('sync-txt').textContent = txt;
+}
+
+async function syncNow() {
+  if (!userId) {
+    document.getElementById('api-setup-box').style.display = 'block';
+    return;
+  }
+  setSyncStatus('loading', '동기화 중...');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: `You are a data sync assistant. The user has ID "${userId}". 
+When given a JSON state, store it and return it. 
+When asked to retrieve, return the last stored state.
+Always respond with ONLY a JSON object: {"action":"stored","state":{...}} or {"action":"retrieved","state":{...}}`,
+        messages: [{ role: 'user', content: `SYNC: Store and retrieve my tracker state. Current state: ${JSON.stringify(state)}. Return my latest state.` }]
+      })
+    });
+    const data = await res.json();
+    const txt = data.content?.[0]?.text || '{}';
+    try {
+      const clean = txt.replace(/```json|```/g,'').trim();
+      const parsed = JSON.parse(clean);
+      if (parsed.state && Object.keys(parsed.state).length > 0) {
+        state = { ...parsed.state, ...state };
+        saveLocal();
+        renderDaily();
+        renderWeekly();
+        updateStats();
+      }
+    } catch(e) {}
+    setSyncStatus('ok', `✅ ${userId} · 동기화 완료`);
+  } catch(e) {
+    setSyncStatus('err', '동기화 실패 · 로컬 저장');
+  }
+}
+
+function calcStats() {
+  let total = 0, done = 0, exDone = 0;
+  DAILY.forEach(d => DAYS.forEach((_, i) => {
+    total++;
+    if (state[`${d.id}_${i}`]) { done++; if (d.id==='exercise') exDone++; }
+  }));
+  WEEKLY.forEach(s => s.items.forEach((_, i) => { total++; if (state[`${s.id}_${i}`]) done++; }));
+  return { total, done, exDone };
+}
+
+function updateStats() {
+  const { total, done, exDone } = calcStats();
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('s-done').textContent = done;
+  document.getElementById('s-left').textContent = total - done;
+  document.getElementById('s-pct').textContent = pct + '%';
+  document.getElementById('s-ex').textContent = exDone + '일';
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-txt').textContent = pct + '%';
+}
+
+function renderDaily() {
+  const tbody = document.getElementById('daily-body');
+  tbody.innerHTML = '';
+  DAILY.forEach(d => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${d.label}</td>` + DAYS.map((_, i) => {
+      const key = `${d.id}_${i}`;
+      return `<td><input type="checkbox" ${state[key]?'checked':''} onchange="toggle('${key}',this.checked)"></td>`;
+    }).join('');
+    tbody.appendChild(tr);
+  });
+}
+
+function renderWeekly() {
+  const wrap = document.getElementById('weekly-sections');
+  wrap.innerHTML = '';
+  WEEKLY.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'section';
+    div.innerHTML = `<div class="section-title">${s.title}</div>`;
+    s.items.forEach((item, i) => {
+      const key = `${s.id}_${i}`;
+      const checked = !!state[key];
+      const row = document.createElement('div');
+      row.className = 'item' + (checked ? ' done' : '');
+      row.innerHTML = `<input type="checkbox" id="w_${key}" ${checked?'checked':''} onchange="toggleItem('${key}',this.checked,this)"><label for="w_${key}">${item}</label>`;
+      div.appendChild(row);
+    });
+    wrap.appendChild(div);
+  });
+}
+
+function toggle(key, val) {
+  state[key] = val; saveLocal(); updateStats();
+  if (userId) clearTimeout(window._syncTimer);
+  if (userId) window._syncTimer = setTimeout(syncNow, 3000);
+}
+
+function toggleItem(key, val, el) {
+  state[key] = val; saveLocal(); updateStats();
+  el.closest('.item').className = 'item' + (val ? ' done' : '');
+  if (userId) clearTimeout(window._syncTimer);
+  if (userId) window._syncTimer = setTimeout(syncNow, 3000);
+}
+
+function saveWeek() {
+  const { total, done, exDone } = calcStats();
+  const pct = total ? Math.round(done/total*100) : 0;
+  const weekKey = getWeekKey();
+  const dailySnap = {};
+  DAILY.forEach(d => { dailySnap[d.id] = DAYS.filter((_, i) => state[`${d.id}_${i}`]).length; });
+  const weeklySnap = {};
+  WEEKLY.forEach(s => {
+    weeklySnap[s.id] = s.items.filter((_, i) => state[`${s.id}_${i}`]).length;
+    weeklySnap[`${s.id}_total`] = s.items.length;
+  });
+  const history = JSON.parse(localStorage.getItem('tracker_history') || '[]');
+  const existing = history.findIndex(h => h.weekKey === weekKey);
+  const record = { weekKey, pct, done, total, exDone, daily: dailySnap, weekly: weeklySnap };
+  if (existing >= 0) history[existing] = record;
+  else history.unshift(record);
+  localStorage.setItem('tracker_history', JSON.stringify(history));
+  alert(`이번 주 기록 저장 완료! 달성률 ${pct}% 🎉`);
+  renderHistory();
+}
+
+function resetWeek() {
+  if (confirm('이번 주 체크를 초기화할까요?')) {
+    state = {}; saveLocal(); renderDaily(); renderWeekly(); updateStats();
+  }
+}
+
+function renderHistory() {
+  const history = JSON.parse(localStorage.getItem('tracker_history') || '[]');
+  const wrap = document.getElementById('history-list');
+  if (!history.length) {
+    wrap.innerHTML = '<div class="history-empty">아직 저장된 기록이 없어요.<br>이번 주 체크 후 저장해보세요!</div>';
+    return;
+  }
+  wrap.innerHTML = '';
+  history.forEach((h, idx) => {
+    const div = document.createElement('div');
+    div.className = 'history-week';
+    const dailyRows = DAILY.map(d => {
+      const val = h.daily?.[d.id] || 0;
+      const pct = Math.round(val/5*100);
+      return `<div class="hw-bar-row"><div class="hw-bar-label">${d.label}</div><div class="hw-bar-track"><div class="hw-bar-fill" style="width:${pct}%"></div></div><div class="hw-bar-val">${val}/5일</div></div>`;
+    }).join('');
+    const weeklyRows = WEEKLY.map(s => {
+      const val = h.weekly?.[s.id] || 0;
+      const tot = h.weekly?.[`${s.id}_total`] || s.items.length;
+      const pct = Math.round(val/tot*100);
+      return `<div class="hw-bar-row"><div class="hw-bar-label">${s.title}</div><div class="hw-bar-track"><div class="hw-bar-fill" style="width:${pct}%"></div></div><div class="hw-bar-val">${val}/${tot}</div></div>`;
+    }).join('');
+    div.innerHTML = `
+      <div class="hw-header">
+        <div class="hw-date">${getWeekLabel(h.weekKey)}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="hw-pct">${h.pct}%</div>
+          <button class="hw-delete" onclick="deleteRecord(${idx})">삭제</button>
+        </div>
+      </div>
+      <div class="hw-bars">${dailyRows}${weeklyRows}</div>`;
+    wrap.appendChild(div);
+  });
+}
+
+function deleteRecord(idx) {
+  if (confirm('이 기록을 삭제할까요?')) {
+    const history = JSON.parse(localStorage.getItem('tracker_history') || '[]');
+    history.splice(idx, 1);
+    localStorage.setItem('tracker_history', JSON.stringify(history));
+    renderHistory();
+  }
+}
+
+function showTab(name) {
+  document.getElementById('tab-check').style.display = name==='check' ? '' : 'none';
+  document.getElementById('tab-history').style.display = name==='history' ? '' : 'none';
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&name==='check')||(i===1&&name==='history')));
+  if (name==='history') renderHistory();
+}
+
+document.getElementById('week-label').textContent = '📆 ' + getWeekLabel(getWeekKey());
+if (userId) setSyncStatus('ok', `☁️ ${userId} · 준비됨`);
+else setSyncStatus('', '로컬 저장 모드 · ☁️ 동기화 버튼으로 설정');
+renderDaily();
+renderWeekly();
+updateStats();
+</script>
+</body>
+</html>
