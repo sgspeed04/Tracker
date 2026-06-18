@@ -66,6 +66,36 @@ h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
 .api-setup p { font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6; }
 .api-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; margin-bottom: 10px; }
 .api-save { background: #1a1a1a; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; cursor: pointer; width: 100%; }
+
+/* Investment briefing styles */
+.asset-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; min-height: 28px; }
+.asset-tag { display: inline-flex; align-items: center; gap: 4px; background: #f0eeea; border-radius: 20px; padding: 5px 10px; font-size: 12px; color: #444; }
+.asset-tag-del { background: none; border: none; color: #bbb; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 0 0 2px; }
+.asset-tag-del:hover { color: #e24b4a; }
+.asset-add-row { display: flex; gap: 8px; }
+.asset-add-row .api-input { margin: 0; flex: 1; }
+.asset-add-row .btn { flex: none; padding: 10px 16px; }
+.briefing-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.briefing-meta-date { font-size: 12px; color: #aaa; }
+.briefing-box { background: #f8f7f4; border-radius: 8px; padding: 14px 16px; font-size: 13px; line-height: 1.75; color: #333; white-space: pre-wrap; word-break: break-word; }
+.briefing-placeholder { color: #bbb; font-size: 13px; text-align: center; padding: 24px 0; }
+.briefing-hist-item { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 8px; border: 1px solid #ebe9e4; }
+.briefing-hist-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.briefing-hist-date { font-size: 13px; font-weight: 600; }
+.briefing-hist-assets { font-size: 11px; color: #aaa; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.briefing-hist-del { background: none; border: none; color: #ccc; cursor: pointer; font-size: 12px; padding: 4px 6px; border-radius: 4px; flex-shrink: 0; }
+.briefing-hist-del:hover { color: #e24b4a; background: #fdf0f0; }
+.briefing-hist-body { font-size: 12px; color: #555; line-height: 1.7; white-space: pre-wrap; display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0eeea; }
+.loading-pulse { text-align: center; padding: 32px 0; }
+.loading-pulse span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1D9E75; margin: 0 3px; animation: ldot 1.2s ease-in-out infinite; }
+.loading-pulse span:nth-child(2) { animation-delay: 0.2s; }
+.loading-pulse span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes ldot { 0%,80%,100%{transform:scale(0.6);opacity:0.5} 40%{transform:scale(1);opacity:1} }
+.key-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+.key-row-label { font-size: 12px; color: #888; }
+.key-change-btn { font-size: 12px; color: #1D9E75; background: none; border: none; cursor: pointer; text-decoration: underline; }
+.error-msg { color: #e24b4a; font-size: 13px; padding: 16px 0; }
+.error-msg small { color: #aaa; font-size: 11px; display: block; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -92,8 +122,10 @@ h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
   <div class="tabs">
     <button class="tab active" onclick="showTab('check')">이번 주 체크</button>
     <button class="tab" onclick="showTab('history')">기록 히스토리</button>
+    <button class="tab" onclick="showTab('invest')">📈 투자 브리핑</button>
   </div>
 
+  <!-- Tab: 이번 주 체크 -->
   <div id="tab-check">
     <div class="stats">
       <div class="stat"><div class="stat-num" id="s-done">0</div><div class="stat-label">완료</div></div>
@@ -119,8 +151,59 @@ h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
     </div>
   </div>
 
+  <!-- Tab: 기록 히스토리 -->
   <div id="tab-history" style="display:none">
     <div id="history-list"></div>
+  </div>
+
+  <!-- Tab: 투자 브리핑 -->
+  <div id="tab-invest" style="display:none">
+
+    <!-- API Key section -->
+    <div class="section" id="invest-key-section">
+      <div class="section-title">🔑 Claude API 키</div>
+      <div id="key-set-view" style="display:none">
+        <div class="key-row">
+          <span class="key-row-label" id="key-masked">설정됨 (sk-ant-...)</span>
+          <button class="key-change-btn" onclick="changeClaudeKey()">변경</button>
+        </div>
+      </div>
+      <div id="key-unset-view">
+        <p style="font-size:13px;color:#666;margin-bottom:10px;line-height:1.6">브리핑 생성에 Claude API 키가 필요해요. <a href="https://console.anthropic.com" target="_blank" style="color:#1D9E75">console.anthropic.com</a>에서 발급받을 수 있어요.</p>
+        <input class="api-input" id="claude-key-input" type="password" placeholder="sk-ant-...">
+        <button class="api-save" onclick="saveClaudeKey()">저장</button>
+      </div>
+    </div>
+
+    <!-- Portfolio -->
+    <div class="section">
+      <div class="section-title">💼 관심 종목 · 자산</div>
+      <div class="asset-wrap" id="asset-wrap">
+        <span style="font-size:12px;color:#bbb">아직 종목이 없어요</span>
+      </div>
+      <div class="asset-add-row">
+        <input class="api-input" id="asset-input" placeholder="삼성전자, TSLA, BTC, S&P500..." onkeydown="if(event.key==='Enter')addAsset()">
+        <button class="btn btn-primary" onclick="addAsset()">+ 추가</button>
+      </div>
+    </div>
+
+    <!-- Briefing output -->
+    <div class="section">
+      <div id="briefing-meta-bar" style="display:none" class="briefing-meta">
+        <span class="briefing-meta-date" id="briefing-meta-date"></span>
+        <button class="hw-delete" onclick="clearBriefing()">지우기</button>
+      </div>
+      <div id="briefing-output">
+        <p class="briefing-placeholder">아래 버튼을 눌러 오늘의 투자 브리핑을 생성하세요.</p>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="generateBriefing()">🤖 브리핑 생성</button>
+      <button class="btn btn-secondary" onclick="toggleBriefingHistory()">📜 이전 브리핑</button>
+    </div>
+
+    <div id="briefing-history-section" style="display:none;margin-top:12px"></div>
   </div>
 </div>
 
@@ -185,8 +268,8 @@ async function syncNow() {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
-        system: `You are a data sync assistant. The user has ID "${userId}". 
-When given a JSON state, store it and return it. 
+        system: `You are a data sync assistant. The user has ID "${userId}".
+When given a JSON state, store it and return it.
 When asked to retrieve, return the last stored state.
 Always respond with ONLY a JSON object: {"action":"stored","state":{...}} or {"action":"retrieved","state":{...}}`,
         messages: [{ role: 'user', content: `SYNC: Store and retrieve my tracker state. Current state: ${JSON.stringify(state)}. Return my latest state.` }]
@@ -351,10 +434,203 @@ function deleteRecord(idx) {
 function showTab(name) {
   document.getElementById('tab-check').style.display = name==='check' ? '' : 'none';
   document.getElementById('tab-history').style.display = name==='history' ? '' : 'none';
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&name==='check')||(i===1&&name==='history')));
+  document.getElementById('tab-invest').style.display = name==='invest' ? '' : 'none';
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active',
+      (i===0 && name==='check') ||
+      (i===1 && name==='history') ||
+      (i===2 && name==='invest')
+    );
+  });
   if (name==='history') renderHistory();
+  if (name==='invest') initInvestTab();
 }
 
+/* ── Investment Briefing ── */
+
+let portfolio = JSON.parse(localStorage.getItem('tracker_portfolio') || '[]');
+
+function initInvestTab() {
+  const claudeKey = localStorage.getItem('tracker_claude_key') || '';
+  if (claudeKey) {
+    document.getElementById('key-unset-view').style.display = 'none';
+    document.getElementById('key-set-view').style.display = '';
+    document.getElementById('key-masked').textContent = `API 키 설정됨 (${claudeKey.slice(0,10)}...)`;
+  } else {
+    document.getElementById('key-unset-view').style.display = '';
+    document.getElementById('key-set-view').style.display = 'none';
+  }
+  renderPortfolio();
+}
+
+function saveClaudeKey() {
+  const val = document.getElementById('claude-key-input').value.trim();
+  if (!val || !val.startsWith('sk-ant-')) return alert('올바른 Claude API 키를 입력하세요 (sk-ant-로 시작)');
+  localStorage.setItem('tracker_claude_key', val);
+  document.getElementById('claude-key-input').value = '';
+  initInvestTab();
+}
+
+function changeClaudeKey() {
+  localStorage.removeItem('tracker_claude_key');
+  initInvestTab();
+}
+
+function renderPortfolio() {
+  const wrap = document.getElementById('asset-wrap');
+  if (!wrap) return;
+  if (!portfolio.length) {
+    wrap.innerHTML = '<span style="font-size:12px;color:#bbb">아직 종목이 없어요</span>';
+    return;
+  }
+  wrap.innerHTML = portfolio.map((a, i) =>
+    `<span class="asset-tag">${escHtml(a)}<button class="asset-tag-del" onclick="removeAsset(${i})" title="삭제">×</button></span>`
+  ).join('');
+}
+
+function addAsset() {
+  const inp = document.getElementById('asset-input');
+  const val = inp.value.trim();
+  if (!val) return;
+  val.split(/[,，\s]+/).filter(Boolean).forEach(v => {
+    if (!portfolio.includes(v)) portfolio.push(v);
+  });
+  localStorage.setItem('tracker_portfolio', JSON.stringify(portfolio));
+  inp.value = '';
+  renderPortfolio();
+}
+
+function removeAsset(i) {
+  portfolio.splice(i, 1);
+  localStorage.setItem('tracker_portfolio', JSON.stringify(portfolio));
+  renderPortfolio();
+}
+
+async function generateBriefing() {
+  const claudeKey = localStorage.getItem('tracker_claude_key') || '';
+  if (!claudeKey) {
+    alert('먼저 Claude API 키를 저장해주세요.');
+    return;
+  }
+
+  const out = document.getElementById('briefing-output');
+  out.innerHTML = `<div class="loading-pulse"><span></span><span></span><span></span><p style="margin-top:12px;font-size:12px;color:#aaa">브리핑 생성 중...</p></div>`;
+  document.getElementById('briefing-meta-bar').style.display = 'none';
+
+  const today = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+  const assets = portfolio.length ? portfolio.join(', ') : '특정 종목 없음 (일반 시장 동향)';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': claudeKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
+        system: `당신은 개인 투자 어드바이저입니다. 오늘 날짜는 ${today}입니다.
+사용자의 관심 종목/자산: ${assets}
+
+아래 4개 섹션으로 일일 투자 브리핑을 작성하세요. 각 섹션은 이모지 헤더로 시작하고, 간결·실용적으로 작성하세요.
+
+📊 오늘의 시장 키워드
+(글로벌/국내 주요 시장 동향 3~4줄)
+
+🎯 관심 종목 체크포인트
+(각 종목별 핵심 포인트 1~2줄씩)
+
+✅ 오늘 해볼 투자 액션
+(구체적인 액션 아이템 3~4가지, 각 항목 앞에 · 붙이기)
+
+⚠️ 리스크 주의사항
+(지금 주의해야 할 리스크 1~2가지)
+
+한국어로 작성하고, 섹션 사이에 빈 줄 하나씩 넣어주세요.`,
+        messages: [{ role: 'user', content: `오늘(${today}) 투자 브리핑 부탁드려요. 관심 종목: ${assets}` }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API 오류 ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '브리핑 내용을 받지 못했어요.';
+
+    out.innerHTML = `<div class="briefing-box">${escHtml(text)}</div>`;
+
+    const now = new Date().toLocaleString('ko-KR');
+    document.getElementById('briefing-meta-date').textContent = `생성: ${now}`;
+    document.getElementById('briefing-meta-bar').style.display = 'flex';
+
+    const hist = JSON.parse(localStorage.getItem('tracker_briefings') || '[]');
+    hist.unshift({ date: now, text, assets });
+    if (hist.length > 30) hist.pop();
+    localStorage.setItem('tracker_briefings', JSON.stringify(hist));
+
+  } catch(e) {
+    out.innerHTML = `<div class="error-msg">브리핑 생성 실패: ${escHtml(e.message)}<small>브라우저 직접 호출 시 CORS 제한이 있을 수 있어요. API 키를 확인하거나 로컬 프록시를 사용해보세요.</small></div>`;
+  }
+}
+
+function clearBriefing() {
+  document.getElementById('briefing-output').innerHTML = `<p class="briefing-placeholder">아래 버튼을 눌러 오늘의 투자 브리핑을 생성하세요.</p>`;
+  document.getElementById('briefing-meta-bar').style.display = 'none';
+}
+
+function toggleBriefingHistory() {
+  const sec = document.getElementById('briefing-history-section');
+  if (sec.style.display === 'none') {
+    renderBriefingHistory();
+    sec.style.display = '';
+  } else {
+    sec.style.display = 'none';
+  }
+}
+
+function renderBriefingHistory() {
+  const hist = JSON.parse(localStorage.getItem('tracker_briefings') || '[]');
+  const sec = document.getElementById('briefing-history-section');
+  if (!hist.length) {
+    sec.innerHTML = '<p style="color:#bbb;font-size:13px;text-align:center;padding:16px">이전 브리핑 기록이 없어요.</p>';
+    return;
+  }
+  sec.innerHTML = hist.map((h, i) => `
+    <div class="briefing-hist-item">
+      <div class="briefing-hist-head" onclick="toggleHistItem(${i})">
+        <div>
+          <div class="briefing-hist-date">${escHtml(h.date)}</div>
+          <div class="briefing-hist-assets">${escHtml(h.assets || '')}</div>
+        </div>
+        <button class="briefing-hist-del" onclick="event.stopPropagation();deleteBriefing(${i})">삭제</button>
+      </div>
+      <div class="briefing-hist-body" id="hist-body-${i}">${escHtml(h.text)}</div>
+    </div>
+  `).join('');
+}
+
+function toggleHistItem(i) {
+  const body = document.getElementById(`hist-body-${i}`);
+  body.style.display = body.style.display === 'block' ? 'none' : 'block';
+}
+
+function deleteBriefing(i) {
+  if (!confirm('이 브리핑을 삭제할까요?')) return;
+  const hist = JSON.parse(localStorage.getItem('tracker_briefings') || '[]');
+  hist.splice(i, 1);
+  localStorage.setItem('tracker_briefings', JSON.stringify(hist));
+  renderBriefingHistory();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Init ── */
 document.getElementById('week-label').textContent = '📆 ' + getWeekLabel(getWeekKey());
 if (userId) setSyncStatus('ok', `☁️ ${userId} · 준비됨`);
 else setSyncStatus('', '로컬 저장 모드 · ☁️ 동기화 버튼으로 설정');
