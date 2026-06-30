@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>서울 재개발·재건축 트래커</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f5f4f0;color:#1a1a1a;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* Header */
+.hdr{background:#1a1a1a;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:1000}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr h1{font-size:16px;font-weight:600}
+.hdr-updated{font-size:11px;color:#888;background:#2a2a2a;padding:3px 8px;border-radius:4px}
+.hdr-nav{display:flex;gap:6px}
+.hdr-nav a{font-size:12px;color:#aaa;text-decoration:none;padding:4px 8px;border-radius:4px;transition:all .15s}
+.hdr-nav a:hover{color:#fff;background:#333}
+.hdr-nav a.active{color:#fff;background:#333}
+
+/* Stats */
+.stats-row{display:flex;gap:0;background:#fff;border-bottom:1px solid #e8e6e1;flex-shrink:0;overflow-x:auto}
+.stat-chip{padding:10px 16px;text-align:center;border-right:1px solid #e8e6e1;white-space:nowrap;min-width:80px;cursor:pointer;transition:background .15s}
+.stat-chip:hover{background:#f5f4f0}
+.stat-chip.active{background:#1a1a1a;color:#fff}
+.stat-chip .num{font-size:18px;font-weight:700;line-height:1}
+.stat-chip .lbl{font-size:10px;color:inherit;opacity:.7;margin-top:2px}
+.stat-chip.active .lbl{opacity:.7}
+.stat-chip .num.c-gray{color:#94a3b8}
+.stat-chip .num.c-yellow{color:#d97706}
+.stat-chip .num.c-orange{color:#ea580c}
+.stat-chip .num.c-red{color:#dc2626}
+.stat-chip .num.c-purple{color:#9333ea}
+.stat-chip .num.c-green{color:#16a34a}
+
+/* Filters */
+.filter-bar{display:flex;gap:8px;padding:10px 12px;background:#fff;border-bottom:1px solid #e8e6e1;flex-shrink:0;overflow-x:auto;align-items:center}
+.filter-bar select{font-size:12px;padding:5px 8px;border:1px solid #d1cec8;border-radius:6px;background:#fff;color:#1a1a1a;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;padding-right:20px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center}
+.filter-bar input{font-size:12px;padding:5px 10px;border:1px solid #d1cec8;border-radius:6px;outline:none;width:140px}
+.filter-bar input:focus{border-color:#1a1a1a}
+.btn-fav{font-size:12px;padding:5px 10px;border:1px solid #d1cec8;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;transition:all .15s}
+.btn-fav.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.result-count{font-size:11px;color:#888;margin-left:auto;white-space:nowrap}
+
+/* Main layout */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* Map panel */
+.map-panel{flex:1;position:relative;min-width:0}
+#map{width:100%;height:100%}
+.map-legend{position:absolute;bottom:16px;left:10px;background:rgba(255,255,255,.95);border-radius:8px;padding:10px 12px;font-size:11px;z-index:900;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.map-legend h4{font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.legend-item{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.source-badge{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.9);border-radius:6px;padding:4px 8px;font-size:10px;color:#888;z-index:900}
+
+/* List panel */
+.list-panel{width:340px;flex-shrink:0;overflow-y:auto;border-left:1px solid #e8e6e1;background:#f5f4f0;display:flex;flex-direction:column}
+.list-header{padding:12px;background:#fff;border-bottom:1px solid #e8e6e1;font-size:12px;font-weight:600;color:#888;flex-shrink:0;display:flex;justify-content:space-between;align-items:center}
+.list-sort{font-size:11px;font-weight:400;color:#aaa;cursor:pointer;text-decoration:underline}
+.cards{flex:1;overflow-y:auto;padding:8px}
+.card{background:#fff;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;border:2px solid transparent;transition:all .15s;position:relative}
+.card:hover{border-color:#1a1a1a;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.card.selected{border-color:#1a1a1a;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px}
+.card-name{font-size:13px;font-weight:600;line-height:1.3;flex:1}
+.card-fav{background:none;border:none;font-size:14px;cursor:pointer;padding:0 0 0 6px;opacity:.5;transition:opacity .15s;flex-shrink:0}
+.card-fav:hover,.card-fav.active{opacity:1}
+.card-badges{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.badge{font-size:10px;padding:2px 7px;border-radius:12px;font-weight:500;white-space:nowrap}
+.badge-type{background:#f0f0f0;color:#666}
+.badge-district{background:#e8f4fd;color:#0969da}
+.badge-stage{color:#fff;font-weight:600}
+.card-meta{font-size:11px;color:#888;display:flex;gap:8px;flex-wrap:wrap}
+.card-units{font-weight:600;color:#1a1a1a}
+
+/* Empty state */
+.empty{text-align:center;padding:40px 20px;color:#aaa}
+.empty-icon{font-size:32px;margin-bottom:8px}
+.empty p{font-size:13px}
+
+/* Detail Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;padding:0;animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-handle{width:36px;height:4px;background:#e0e0e0;border-radius:2px;margin:12px auto 0}
+.modal-body{padding:16px 20px 24px}
+.modal-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.modal-title{font-size:18px;font-weight:700;line-height:1.3}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#888;padding:0;line-height:1}
+.modal-stage-bar{display:flex;gap:0;margin-bottom:16px;border-radius:8px;overflow:hidden}
+.stage-step{flex:1;padding:6px 2px;text-align:center;font-size:9px;font-weight:600;color:#fff;opacity:.35;position:relative}
+.stage-step.done{opacity:1}
+.stage-step.current{opacity:1;position:relative}
+.stage-step.current::after{content:'▼';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);font-size:8px}
+.modal-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.info-item{background:#f8f8f8;border-radius:8px;padding:10px 12px}
+.info-label{font-size:10px;color:#888;margin-bottom:2px}
+.info-value{font-size:14px;font-weight:600}
+.modal-notes{background:#fffbf0;border:1px solid #f0d080;border-radius:8px;padding:10px 12px;font-size:12px;color:#654b00;margin-bottom:16px}
+.modal-actions{display:flex;gap:8px}
+.btn-naver{flex:1;background:#03c75a;color:#fff;border:none;border-radius:8px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px;transition:background .15s}
+.btn-naver:hover{background:#02a84a}
+.btn-kakao{flex:1;background:#fee500;color:#1a1a1a;border:none;border-radius:8px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px;transition:background .15s}
+.btn-kakao:hover{background:#e6cf00}
+.btn-fav-modal{background:#f0f0f0;color:#1a1a1a;border:none;border-radius:8px;padding:12px 16px;font-size:13px;cursor:pointer;transition:background .15s;white-space:nowrap}
+.btn-fav-modal:hover{background:#e0e0e0}
+
+/* Mobile */
+@media(max-width:768px){
+  .main{flex-direction:column}
+  .map-panel{height:50vh;flex:none}
+  .list-panel{width:100%;border-left:none;border-top:1px solid #e8e6e1;height:calc(50vh - 90px)}
+  .hdr-nav a{display:none}
+  .hdr-nav a.active{display:block}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <h1>서울 재개발·재건축</h1>
+    <span class="hdr-updated" id="updatedAt">업데이트 중...</span>
+  </div>
+  <nav class="hdr-nav">
+    <a href="index.html">트래커</a>
+    <a href="consulting.html">자문</a>
+    <a href="redevelopment.html" class="active">재개발</a>
+  </nav>
+</header>
+
+<div class="stats-row" id="statsRow">
+  <div class="stat-chip" data-filter="all">
+    <div class="num" id="statTotal">-</div>
+    <div class="lbl">전체</div>
+  </div>
+  <div class="stat-chip" data-filter="1">
+    <div class="num c-yellow" id="stat1">-</div>
+    <div class="lbl">조합설립</div>
+  </div>
+  <div class="stat-chip" data-filter="2">
+    <div class="num c-orange" id="stat2">-</div>
+    <div class="lbl">사업시행</div>
+  </div>
+  <div class="stat-chip" data-filter="3">
+    <div class="num c-red" id="stat3">-</div>
+    <div class="lbl">관리처분</div>
+  </div>
+  <div class="stat-chip" data-filter="4">
+    <div class="num c-purple" id="stat4">-</div>
+    <div class="lbl">착공중</div>
+  </div>
+  <div class="stat-chip" data-filter="5">
+    <div class="num c-green" id="stat5">-</div>
+    <div class="lbl">준공완료</div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <select id="filterDistrict">
+    <option value="">전체 구</option>
+  </select>
+  <select id="filterType">
+    <option value="">전체 유형</option>
+    <option value="재개발">재개발</option>
+    <option value="재건축">재건축</option>
+  </select>
+  <input type="text" id="searchInput" placeholder="구역명 검색..." />
+  <button class="btn-fav" id="btnFavOnly">♥ 관심구역</button>
+  <span class="result-count" id="resultCount"></span>
+</div>
+
+<div class="main">
+  <div class="map-panel">
+    <div id="map"></div>
+    <div class="map-legend">
+      <h4>사업 단계</h4>
+      <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>조합설립인가</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div>사업시행인가</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>관리처분인가</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>이주/착공</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>준공완료</div>
+    </div>
+    <div class="source-badge" id="sourceBadge">샘플 데이터</div>
+  </div>
+
+  <div class="list-panel">
+    <div class="list-header">
+      <span id="listTitle">구역 목록</span>
+      <span class="list-sort" id="sortBtn">단계순 ↕</span>
+    </div>
+    <div class="cards" id="cardContainer"></div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-body">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="modalTitle"></div>
+          <div style="font-size:12px;color:#888;margin-top:2px" id="modalSub"></div>
+        </div>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
+
+      <div class="modal-stage-bar" id="modalStageBar"></div>
+      <div style="font-size:9px;color:#888;text-align:right;margin-top:10px;margin-bottom:12px" id="modalStageName"></div>
+
+      <div class="modal-info-grid" id="modalInfoGrid"></div>
+
+      <div class="modal-notes" id="modalNotes" style="display:none"></div>
+
+      <div class="modal-actions">
+        <a class="btn-naver" id="btnNaverLand" target="_blank" rel="noopener">
+          <span>N</span> 네이버 부동산
+        </a>
+        <a class="btn-kakao" id="btnKakaoMap" target="_blank" rel="noopener">
+          <span>K</span> 카카오 지도
+        </a>
+        <button class="btn-fav-modal" id="btnFavModal">♡ 관심</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const STAGES = ['구역지정','조합설립인가','사업시행인가','관리처분인가','이주/착공','준공완료'];
+const STAGE_COLORS = ['#94a3b8','#fbbf24','#f97316','#ef4444','#a855f7','#22c55e'];
+
+let allProjects = [];
+let filteredProjects = [];
+let map, markers = {};
+let selectedId = null;
+let favOnly = false;
+let sortMode = 'stage'; // 'stage' | 'name' | 'units'
+let activeStatFilter = 'all';
+
+// Favorites
+function getFavs() { try { return JSON.parse(localStorage.getItem('redev_favs')||'[]'); } catch{return[];} }
+function saveFavs(f) { localStorage.setItem('redev_favs', JSON.stringify(f)); }
+function isFav(id) { return getFavs().includes(id); }
+function toggleFav(id) {
+  let f = getFavs();
+  if (f.includes(id)) f = f.filter(x=>x!==id);
+  else f.push(id);
+  saveFavs(f);
+  renderCards();
+  if (selectedId === id) updateFavBtn();
+}
+
+// Map init
+function initMap() {
+  map = L.map('map', { zoomControl: true }).setView([37.5540, 126.9937], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    maxZoom: 18
+  }).addTo(map);
+}
+
+function createMarkerIcon(project, highlight = false) {
+  const color = STAGE_COLORS[project.stage_idx] || '#94a3b8';
+  const size = highlight ? 18 : 13;
+  return L.divIcon({
+    html: `<div style="width:${size}px;height:${size}px;background:${color};border:${highlight?3:2}px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+    className: ''
+  });
+}
+
+function renderMarkers() {
+  // Remove old markers
+  Object.values(markers).forEach(m => m.remove());
+  markers = {};
+
+  filteredProjects.forEach(p => {
+    const m = L.marker([p.lat, p.lng], { icon: createMarkerIcon(p) });
+    m.bindTooltip(`<b>${p.name}</b><br>${p.stage}`, { direction:'top', offset:[0,-6] });
+    m.on('click', () => openDetail(p.id));
+    m.addTo(map);
+    markers[p.id] = m;
+  });
+}
+
+function highlightMarker(id) {
+  Object.entries(markers).forEach(([pid, m]) => {
+    const p = allProjects.find(x=>x.id===pid);
+    if (!p) return;
+    m.setIcon(createMarkerIcon(p, pid === id));
+    if (pid === id) m.setZIndexOffset(1000);
+    else m.setZIndexOffset(0);
+  });
+}
+
+// Render cards
+function renderCards() {
+  const container = document.getElementById('cardContainer');
+  const favs = getFavs();
+
+  let list = [...filteredProjects];
+  if (sortMode === 'stage') list.sort((a,b) => b.stage_idx - a.stage_idx || a.name.localeCompare(b.name));
+  else if (sortMode === 'name') list.sort((a,b) => a.name.localeCompare(b.name));
+  else if (sortMode === 'units') list.sort((a,b) => (b.units||0) - (a.units||0));
+
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><p>조건에 맞는 구역이 없습니다</p></div>`;
+    return;
+  }
+
+  container.innerHTML = list.map(p => {
+    const color = STAGE_COLORS[p.stage_idx] || '#94a3b8';
+    const fav = favs.includes(p.id);
+    return `<div class="card${selectedId===p.id?' selected':''}" data-id="${p.id}">
+      <div class="card-top">
+        <div class="card-name">${p.name}</div>
+        <button class="card-fav${fav?' active':''}" data-fav="${p.id}" title="관심 구역">${fav?'♥':'♡'}</button>
+      </div>
+      <div class="card-badges">
+        <span class="badge badge-type">${p.type}</span>
+        <span class="badge badge-district">${p.district}</span>
+        <span class="badge badge-stage" style="background:${color}">${p.stage}</span>
+      </div>
+      <div class="card-meta">
+        ${p.units ? `<span><b class="card-units">${p.units.toLocaleString()}세대</b></span>` : ''}
+        ${p.contractor ? `<span>${p.contractor}</span>` : ''}
+        ${p.stage_date ? `<span>${p.stage_date}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Event listeners
+  container.querySelectorAll('.card').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.card-fav')) return;
+      openDetail(el.dataset.id);
+    });
+  });
+  container.querySelectorAll('.card-fav').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFav(btn.dataset.fav);
+    });
+  });
+}
+
+// Stats
+function renderStats() {
+  document.getElementById('statTotal').textContent = allProjects.length;
+  [1,2,3,4,5].forEach(i => {
+    document.getElementById('stat'+i).textContent = allProjects.filter(p=>p.stage_idx===i).length;
+  });
+}
+
+// Filter
+function applyFilters() {
+  const district = document.getElementById('filterDistrict').value;
+  const type = document.getElementById('filterType').value;
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+  const favs = getFavs();
+
+  filteredProjects = allProjects.filter(p => {
+    if (district && p.district !== district) return false;
+    if (type && p.type !== type) return false;
+    if (search && !p.name.toLowerCase().includes(search) && !p.dong.toLowerCase().includes(search)) return false;
+    if (favOnly && !favs.includes(p.id)) return false;
+    if (activeStatFilter !== 'all' && p.stage_idx !== parseInt(activeStatFilter)) return false;
+    return true;
+  });
+
+  document.getElementById('resultCount').textContent = `${filteredProjects.length}개`;
+  renderMarkers();
+  renderCards();
+}
+
+// Populate district filter
+function populateDistricts() {
+  const sel = document.getElementById('filterDistrict');
+  const districts = [...new Set(allProjects.map(p=>p.district))].sort();
+  districts.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = d;
+    sel.appendChild(opt);
+  });
+}
+
+// Open detail modal
+function openDetail(id) {
+  const p = allProjects.find(x=>x.id===id);
+  if (!p) return;
+  selectedId = id;
+
+  highlightMarker(id);
+  renderCards();
+
+  // Fly to marker
+  if (markers[id]) {
+    map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 14), { duration: 0.8 });
+  }
+
+  // Scroll card into view
+  const card = document.querySelector(`.card[data-id="${id}"]`);
+  if (card) card.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+  // Fill modal
+  const color = STAGE_COLORS[p.stage_idx] || '#94a3b8';
+  document.getElementById('modalTitle').textContent = p.name;
+  document.getElementById('modalSub').textContent = `${p.district} ${p.dong} · ${p.type}`;
+
+  // Stage bar
+  const stageBar = document.getElementById('modalStageBar');
+  stageBar.innerHTML = STAGES.map((s,i) => {
+    const done = i <= p.stage_idx;
+    const current = i === p.stage_idx;
+    return `<div class="stage-step${done?' done':''}${current?' current':''}"
+      style="background:${done ? STAGE_COLORS[i] : '#e5e7eb'}">
+      ${s.length > 4 ? s.substring(0,4) : s}
+    </div>`;
+  }).join('');
+  document.getElementById('modalStageName').textContent = `현재 단계: ${p.stage}${p.stage_date ? ' ('+p.stage_date+')' : ''}`;
+
+  // Info grid
+  const infoItems = [
+    ['유형', p.type],
+    ['행정구역', p.district + ' ' + p.dong],
+    ['총 세대수', p.units ? p.units.toLocaleString()+'세대' : '-'],
+    ['면적', p.area_m2 ? (p.area_m2/10000).toFixed(1)+'만㎡' : '-'],
+    ['시공사', p.contractor || '-'],
+    ['단계 일자', p.stage_date || '-'],
+  ];
+  document.getElementById('modalInfoGrid').innerHTML = infoItems.map(([l,v]) =>
+    `<div class="info-item"><div class="info-label">${l}</div><div class="info-value">${v}</div></div>`
+  ).join('');
+
+  // Notes
+  const notesEl = document.getElementById('modalNotes');
+  if (p.notes) {
+    notesEl.textContent = '📌 ' + p.notes;
+    notesEl.style.display = 'block';
+  } else {
+    notesEl.style.display = 'none';
+  }
+
+  // Action buttons
+  const searchQ = encodeURIComponent(p.name + ' ' + p.district);
+  document.getElementById('btnNaverLand').href = `https://land.naver.com/search/search.naver?query=${encodeURIComponent(p.dong+' '+p.type)}`;
+  document.getElementById('btnKakaoMap').href = `https://map.kakao.com/?q=${searchQ}`;
+
+  updateFavBtn();
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function updateFavBtn() {
+  const btn = document.getElementById('btnFavModal');
+  const fav = isFav(selectedId);
+  btn.textContent = fav ? '♥ 관심 해제' : '♡ 관심 추가';
+  btn.style.background = fav ? '#1a1a1a' : '#f0f0f0';
+  btn.style.color = fav ? '#fff' : '#1a1a1a';
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+  selectedId = null;
+  Object.entries(markers).forEach(([pid, m]) => {
+    const p = allProjects.find(x=>x.id===pid);
+    if (p) m.setIcon(createMarkerIcon(p, false));
+    m.setZIndexOffset(0);
+  });
+  renderCards();
+}
+
+// Load data
+async function loadData() {
+  try {
+    const res = await fetch('data/redevelopment.json?t=' + Date.now());
+    const data = await res.json();
+    allProjects = data.projects || [];
+
+    const updEl = document.getElementById('updatedAt');
+    updEl.textContent = '업데이트: ' + (data.updated_at || '알 수 없음');
+
+    const srcBadge = document.getElementById('sourceBadge');
+    if (data.source === 'sample') {
+      srcBadge.textContent = '샘플 데이터';
+      srcBadge.style.color = '#d97706';
+    } else {
+      srcBadge.textContent = '실 데이터 ✓';
+      srcBadge.style.color = '#16a34a';
+    }
+  } catch(e) {
+    console.error('데이터 로드 실패:', e);
+    document.getElementById('updatedAt').textContent = '데이터 로드 실패';
+  }
+}
+
+// Sort toggle
+let sortCycle = ['stage','units','name'];
+let sortIdx = 0;
+document.getElementById('sortBtn').addEventListener('click', () => {
+  sortIdx = (sortIdx + 1) % sortCycle.length;
+  sortMode = sortCycle[sortIdx];
+  const labels = { stage:'단계순 ↕', units:'세대수↑', name:'이름순 ↕' };
+  document.getElementById('sortBtn').textContent = labels[sortMode];
+  renderCards();
+});
+
+// Stat filter chips
+document.querySelectorAll('.stat-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const f = chip.dataset.filter;
+    if (activeStatFilter === f) {
+      activeStatFilter = 'all';
+      document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active'));
+      document.querySelector('.stat-chip[data-filter="all"]').classList.add('active');
+    } else {
+      activeStatFilter = f;
+      document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    }
+    applyFilters();
+  });
+});
+
+// Fav only toggle
+document.getElementById('btnFavOnly').addEventListener('click', () => {
+  favOnly = !favOnly;
+  document.getElementById('btnFavOnly').classList.toggle('active', favOnly);
+  applyFilters();
+});
+
+// Filters
+['filterDistrict','filterType'].forEach(id => {
+  document.getElementById(id).addEventListener('change', applyFilters);
+});
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+// Modal close
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+});
+document.getElementById('btnFavModal').addEventListener('click', () => {
+  if (selectedId) toggleFav(selectedId);
+  updateFavBtn();
+  renderCards();
+});
+
+// Main init
+async function init() {
+  initMap();
+  await loadData();
+  populateDistricts();
+  renderStats();
+  applyFilters();
+  document.querySelector('.stat-chip[data-filter="all"]').classList.add('active');
+}
+
+init();
+</script>
+</body>
+</html>
