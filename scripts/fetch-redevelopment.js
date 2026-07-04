@@ -98,7 +98,8 @@ async function fetchSeoulPage(serviceName, start, end) {
   let lastErr;
   for (const url of urls) {
     try {
-      const res  = await fetch(url);
+      const res  = await fetchWithTimeout(url, 30000, { Referer: 'https://data.seoul.go.kr/' });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
       const json = await res.json();
       const root = json[serviceName] || json;
       if (root.RESULT) {
@@ -131,18 +132,56 @@ async function fetchSeoulAllPages(serviceName) {
 
 // ── openapi.gg.go.kr 경기도 API 페이지 요청 ─────────────────────────────────
 // 형식: https://openapi.gg.go.kr/{SERVICE}?KEY={KEY}&Type=json&pIndex={p}&pSize={n}
-async function fetchGgPage(serviceName, pIndex, pSize) {
-  const url = `https://openapi.gg.go.kr/${serviceName}?KEY=${GG_KEY}&Type=json&pIndex=${pIndex}&pSize=${pSize}`;
-  const res  = await fetch(url);
-  const json = await res.json();
-  const root = json[serviceName] || json;
-  if (root.RESULT) {
-    const code = root.RESULT.CODE || '';
-    const msg  = root.RESULT.MESSAGE || code;
-    console.log(`    [GG RESULT] ${code} — ${msg}`);
-    if (!code.includes('INFO-000')) throw new Error(`GG API 오류: ${msg}`);
+const FETCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8',
+  'Referer': 'https://openapi.gg.go.kr/',
+};
+
+async function fetchWithTimeout(url, timeoutMs = 30000, extraHeaders = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { headers: { ...FETCH_HEADERS, ...extraHeaders }, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (e) {
+    clearTimeout(timer);
+    // Log the underlying cause for diagnosis
+    const cause = e.cause;
+    const detail = cause ? ` [${cause.code || cause.constructor?.name || ''}] ${cause.message || ''}` : '';
+    throw new Error(`${e.message}${detail}`.trim());
   }
-  return { rows: root.row || [], total: parseInt(root.list_total_count || 0) };
+}
+
+async function fetchGgPage(serviceName, pIndex, pSize) {
+  const qs = `KEY=${GG_KEY}&Type=json&pIndex=${pIndex}&pSize=${pSize}`;
+  const urls = [
+    `https://openapi.gg.go.kr/${serviceName}?${qs}`,
+    `http://openapi.gg.go.kr/${serviceName}?${qs}`,
+  ];
+  let lastErr;
+  for (const url of urls) {
+    const proto = url.startsWith('https') ? 'HTTPS' : 'HTTP';
+    try {
+      const res  = await fetchWithTimeout(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const json = await res.json();
+      const root = json[serviceName] || json;
+      if (root.RESULT) {
+        const code = root.RESULT.CODE || '';
+        const msg  = root.RESULT.MESSAGE || code;
+        console.log(`    [GG RESULT] ${code} — ${msg}`);
+        if (!code.includes('INFO-000')) throw new Error(`GG API 오류: ${msg}`);
+      }
+      return { rows: root.row || [], total: parseInt(root.list_total_count || 0) };
+    } catch (e) {
+      console.warn(`    [GG ${proto}] 실패: ${e.message}`);
+      lastErr = e;
+    }
+  }
+  throw lastErr;
 }
 
 async function fetchGgAllPages(serviceName) {
