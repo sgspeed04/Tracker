@@ -112,6 +112,13 @@ h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
         <tbody id="daily-body"></tbody>
       </table>
     </div>
+    <div class="section">
+      <div class="section-title">🗓️ 주말 (토/일)</div>
+      <table class="daily-grid">
+        <thead><tr><th>항목</th><th>토</th><th>일</th></tr></thead>
+        <tbody id="weekend-body"></tbody>
+      </table>
+    </div>
     <div id="weekly-sections"></div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="saveWeek()">✅ 이번 주 기록 저장</button>
@@ -132,10 +139,16 @@ const DAILY = [
   { id: 'english',  label: '🇬🇧 영어' },
 ];
 const DAYS = ['월','화','수','목','금'];
+const WEEKEND_DAILY = [
+  { id: 'wex',   label: '🏃 운동' },
+  { id: 'wstu',  label: '💻 공부 (Python/BI)' },
+  { id: 'wmus',  label: '🎵 음악제작' },
+  { id: 'wprop', label: '🏠 부동산 리서치' },
+];
+const WEEKEND_DAYS = ['토', '일'];
 const WEEKLY = [
   { id: 'biz', title: '💼 부업', items: ['GLG 프로필 작성 진행','크몽 프로필 초안','LinkedIn 포스팅 1개','자문 콜 준비·복습'] },
   { id: 'invest', title: '📈 투자', items: ['포트폴리오 확인','시장 뉴스 체크 (Perplexity)','매수·매도 메모','월 적립 실행 여부'] },
-  { id: 'weekend', title: '💻 주말 학습', items: ['Python / BI / 수학 중 1개','지난주 복습 먼저','Suno 노래 작업'] },
   { id: 'property', title: '🏠 부동산', items: ['관심 지역 시세 확인','재개발 뉴스 체크'] },
 ];
 
@@ -217,6 +230,10 @@ function calcStats() {
     total++;
     if (state[`${d.id}_${i}`]) { done++; if (d.id==='exercise') exDone++; }
   }));
+  WEEKEND_DAILY.forEach(d => WEEKEND_DAYS.forEach((_, i) => {
+    total++;
+    if (state[`${d.id}_${i}`]) { done++; if (d.id==='wex') exDone++; }
+  }));
   WEEKLY.forEach(s => s.items.forEach((_, i) => { total++; if (state[`${s.id}_${i}`]) done++; }));
   return { total, done, exDone };
 }
@@ -238,6 +255,19 @@ function renderDaily() {
   DAILY.forEach(d => {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${d.label}</td>` + DAYS.map((_, i) => {
+      const key = `${d.id}_${i}`;
+      return `<td><input type="checkbox" ${state[key]?'checked':''} onchange="toggle('${key}',this.checked)"></td>`;
+    }).join('');
+    tbody.appendChild(tr);
+  });
+}
+
+function renderWeekend() {
+  const tbody = document.getElementById('weekend-body');
+  tbody.innerHTML = '';
+  WEEKEND_DAILY.forEach(d => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${d.label}</td>` + WEEKEND_DAYS.map((_, i) => {
       const key = `${d.id}_${i}`;
       return `<td><input type="checkbox" ${state[key]?'checked':''} onchange="toggle('${key}',this.checked)"></td>`;
     }).join('');
@@ -283,6 +313,7 @@ function saveWeek() {
   const weekKey = getWeekKey();
   const dailySnap = {};
   DAILY.forEach(d => { dailySnap[d.id] = DAYS.filter((_, i) => state[`${d.id}_${i}`]).length; });
+  WEEKEND_DAILY.forEach(d => { dailySnap[d.id] = WEEKEND_DAYS.filter((_, i) => state[`${d.id}_${i}`]).length; });
   const weeklySnap = {};
   WEEKLY.forEach(s => {
     weeklySnap[s.id] = s.items.filter((_, i) => state[`${s.id}_${i}`]).length;
@@ -300,7 +331,7 @@ function saveWeek() {
 
 function resetWeek() {
   if (confirm('이번 주 체크를 초기화할까요?')) {
-    state = {}; saveLocal(); renderDaily(); renderWeekly(); updateStats();
+    state = {}; saveLocal(); renderDaily(); renderWeekend(); renderWeekly(); updateStats();
   }
 }
 
@@ -320,6 +351,11 @@ function renderHistory() {
       const pct = Math.round(val/5*100);
       return `<div class="hw-bar-row"><div class="hw-bar-label">${d.label}</div><div class="hw-bar-track"><div class="hw-bar-fill" style="width:${pct}%"></div></div><div class="hw-bar-val">${val}/5일</div></div>`;
     }).join('');
+    const weekendRows = WEEKEND_DAILY.map(d => {
+      const val = h.daily?.[d.id] || 0;
+      const pct = Math.round(val/2*100);
+      return `<div class="hw-bar-row"><div class="hw-bar-label">${d.label}</div><div class="hw-bar-track"><div class="hw-bar-fill" style="width:${pct}%;background:#7c3aed"></div></div><div class="hw-bar-val">${val}/2일</div></div>`;
+    }).join('');
     const weeklyRows = WEEKLY.map(s => {
       const val = h.weekly?.[s.id] || 0;
       const tot = h.weekly?.[`${s.id}_total`] || s.items.length;
@@ -334,7 +370,7 @@ function renderHistory() {
           <button class="hw-delete" onclick="deleteRecord(${idx})">삭제</button>
         </div>
       </div>
-      <div class="hw-bars">${dailyRows}${weeklyRows}</div>`;
+      <div class="hw-bars">${dailyRows}${weekendRows}${weeklyRows}</div>`;
     wrap.appendChild(div);
   });
 }
@@ -359,6 +395,7 @@ document.getElementById('week-label').textContent = '📆 ' + getWeekLabel(getWe
 if (userId) setSyncStatus('ok', `☁️ ${userId} · 준비됨`);
 else setSyncStatus('', '로컬 저장 모드 · ☁️ 동기화 버튼으로 설정');
 renderDaily();
+renderWeekend();
 renderWeekly();
 updateStats();
 </script>
