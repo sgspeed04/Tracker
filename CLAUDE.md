@@ -11,6 +11,8 @@
 |------|------|-----|
 | `index.html` | 개인 습관/목표 주간 트래커 | https://sgspeed04.github.io/Tracker/ |
 | `consulting.html` | 자문 서비스 CRM + 수입 관리 | https://sgspeed04.github.io/Tracker/consulting.html |
+| `redevelopment.html` | 수도권 재개발·재건축 지도 (공공데이터 자동수집) | https://sgspeed04.github.io/Tracker/redevelopment.html |
+| `violations.html` | 위반건축물 리드 관리 + 건축사 협업 CRM | https://sgspeed04.github.io/Tracker/violations.html |
 
 ## 기술 스택
 - **프론트엔드**: Vanilla JS + HTML/CSS (빌드 불필요, 단일 파일)
@@ -22,7 +24,7 @@
 ## Supabase 설정
 - 프로젝트: sgspeed04's Project (sghan.biz)
 - URL: https://fbctahxjzwwzuscjvaxg.supabase.co
-- 테이블: `cm_clients`, `cm_sessions`
+- 테이블: `cm_clients`, `cm_sessions`, `viol_architects`, `viol_leads`
 - RLS: 활성화됨 (anon 정책 적용)
 
 ## consulting.html 주요 기능
@@ -32,6 +34,14 @@
 - 수입 통계 (월별 차트, 플랫폼별 분석)
 - Gmail 연동 (이메일 템플릿, 클라이언트 검색)
 - Supabase 크로스 디바이스 동기화
+
+## violations.html 주요 기능
+- 위반건축물 리드 관리 (주소/구·시/위반유형/확인일/상태/출처링크)
+- 상태 흐름: 신규 → 컨택완료 → 건축사소개 → 계약성사 → 수수료수령 (보류/중단 분기)
+- 건축사 파트너 관리 (전문분야/연락처/소개 수수료율) + 리드 배정
+- 대시보드: 구/시별 리드 분포, 확정·예상 소개 수수료 합계
+- 구/시 입력 시 해당 지역 위반건축물 공고 검색 바로가기 (전국 통합 오픈API 미공개 — 수기 등록 방식)
+- Supabase 크로스 디바이스 동기화 (consulting.html과 동일 패턴)
 
 ## index.html 주요 기능
 - 일일 습관 추적 (월~금): 운동, 식단, 중국어, 영어
