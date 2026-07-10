@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>네이버 스마트스토어 관리</title>
+<style>
+:root {
+  --primary: #2563eb; --primary-dark: #1d4ed8; --success: #16a34a;
+  --warning: #d97706; --danger: #dc2626; --purple: #7c3aed;
+  --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0;
+  --text: #0f172a; --muted: #64748b; --sidebar: #0f172a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.app{display:flex;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:220px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;position:fixed;height:100vh;z-index:200;transition:transform .3s}
+.sidebar-logo{padding:22px 18px 18px;border-bottom:1px solid #1e293b}
+.sidebar-logo h1{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.sidebar-logo p{font-size:11px;color:#64748b;margin-top:3px}
+.sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 18px;cursor:pointer;color:#94a3b8;font-size:13.5px;font-weight:500;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{background:#1e293b;color:#fff}
+.nav-item.active{background:#1e293b;color:#fff;border-left-color:var(--primary)}
+.nav-icon{font-size:16px;width:18px;text-align:center}
+.sidebar-footer{padding:14px 18px;border-top:1px solid #1e293b}
+.sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#64748b;margin-right:6px}
+.sync-dot.ok{background:#22c55e} .sync-dot.err{background:#ef4444} .sync-dot.ing{background:#f59e0b;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sync-label{font-size:11px;color:#64748b}
+
+/* MAIN */
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar h2{font-size:19px;font-weight:700}
+.topbar-right{display:flex;gap:10px;align-items:center}
+.hamburger{display:none;background:none;border:none;cursor:pointer;font-size:20px;padding:4px}
+.content{padding:28px;flex:1}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px}
+.stat-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.stat-value{font-size:26px;font-weight:800}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.stat.c1 .stat-value{color:var(--primary)} .stat.c2 .stat-value{color:var(--success)}
+.stat.c3 .stat-value{color:var(--warning)} .stat.c4 .stat-value{color:var(--purple)}
+
+/* CARDS */
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:18px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.card-title{font-size:15px;font-weight:700}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+/* BUTTONS */
+.btn{padding:8px 15px;border-radius:8px;border:none;cursor:pointer;font-size:13.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:all .15s;text-decoration:none}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--bg)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-warning{background:var(--warning);color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:6px}
+.btn-ghost{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 8px;border-radius:6px;font-size:13px;transition:all .15s}.btn-ghost:hover{background:var(--bg);color:var(--text)}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:10px 14px;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:13px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+.actions-cell{display:flex;gap:4px;align-items:center}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.badge-blue{background:#dbeafe;color:#1d4ed8} .badge-green{background:#dcfce7;color:#15803d}
+.badge-yellow{background:#fef3c7;color:#92400e} .badge-purple{background:#ede9fe;color:#6d28d9}
+.badge-red{background:#fee2e2;color:#b91c1c} .badge-gray{background:#f1f5f9;color:#475569}
+.badge-orange{background:#fff7ed;color:#c2410c}
+
+/* SEARCH & FILTER */
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.search-wrap{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 12px}
+.search-wrap input{border:none;outline:none;font-size:13.5px;width:180px;background:transparent}
+select.filter-select{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13.5px;background:#fff;cursor:pointer;outline:none}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:560px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-hd{padding:22px 22px 0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:1;border-bottom:1px solid var(--border);padding-bottom:14px}
+.modal-hd h3{font-size:17px;font-weight:700}
+.modal-body{padding:20px 22px}
+.modal-ft{padding:0 22px 20px;display:flex;gap:10px;justify-content:flex-end}
+.close-btn{background:none;border:none;cursor:pointer;font-size:22px;color:var(--muted);padding:2px 6px}
+
+/* FORMS */
+.form-group{margin-bottom:15px}
+.form-label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+.form-control{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13.5px;outline:none;transition:border-color .15s;background:#fff}
+.form-control:focus{border-color:var(--primary)}
+textarea.form-control{resize:vertical;min-height:80px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+.required{color:var(--danger)}
+
+/* ACTIVITY */
+.activity-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.activity-item:last-child{border-bottom:none}
+.a-icon{width:32px;height:32px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.a-content{flex:1}
+.a-title{font-size:13.5px;font-weight:500}
+.a-time{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* INCOME CHART */
+.bar-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.bar-lbl{width:100px;font-size:13px;color:var(--muted);text-align:right}
+.bar-track{flex:1;background:var(--bg);border-radius:4px;height:9px}
+.bar-fill{height:100%;border-radius:4px;background:var(--primary);min-width:4px;transition:width .5s}
+.bar-val{width:100px;font-size:13px;font-weight:700}
+
+/* SETTINGS */
+.settings-section{margin-bottom:28px}
+.settings-title{font-size:14px;font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.code-block{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:8px;font-size:12px;font-family:monospace;overflow-x:auto;white-space:pre;margin-top:10px}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:48px 16px;color:var(--muted)}
+.empty-icon{font-size:44px;margin-bottom:10px}
+.empty p{font-size:14px}
+
+/* MOBILE */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}
+.sidebar-overlay.show{display:block}
+@media(max-width:900px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .grid2{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .hamburger{display:block}
+  .content{padding:16px}
+  .stats-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .form-row{grid-template-columns:1fr}
+  .topbar{padding:12px 16px}
+  .modal{width:98vw}
+  .search-wrap input{width:130px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <h1>🛍️ 스마트스토어</h1>
+    <p id="userName">네이버 쇼핑몰 관리</p>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" onclick="navigate('dashboard')" data-view="dashboard">
+      <span class="nav-icon">📊</span> 대시보드
+    </div>
+    <div class="nav-item" onclick="navigate('products')" data-view="products">
+      <span class="nav-icon">📦</span> 상품/재고
+    </div>
+    <div class="nav-item" onclick="navigate('orders')" data-view="orders">
+      <span class="nav-icon">🛒</span> 주문 관리
+    </div>
+    <div class="nav-item" onclick="navigate('settlement')" data-view="settlement">
+      <span class="nav-icon">💰</span> 정산/마진
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="nav-item" onclick="navigate('settings')" data-view="settings" style="padding:8px 0;border:none">
+      <span class="nav-icon">⚙️</span> <span style="font-size:12px;color:#64748b">설정 / 연동</span>
+    </div>
+    <div style="display:flex;align-items:center;margin-top:6px">
+      <span class="sync-dot" id="syncDot"></span>
+      <span class="sync-label" id="syncLabel">로컬 저장</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="hamburger" onclick="openSidebar()">☰</button>
+      <h2 id="pageTitle">대시보드</h2>
+    </div>
+    <div class="topbar-right" id="topbarActions"></div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+</div>
+
+<!-- MODALS -->
+<div class="overlay" id="productModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="productModalTitle">상품 추가</h3>
+      <button class="close-btn" onclick="closeModal('productModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="productId">
+      <div class="form-group">
+        <label class="form-label">상품명 <span class="required">*</span></label>
+        <input class="form-control" id="productName" placeholder="예: 무선 이어폰 케이스">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">카테고리</label>
+          <input class="form-control" id="productCategory" placeholder="예: 디지털/가전">
+        </div>
+        <div class="form-group">
+          <label class="form-label">공급처/소싱처</label>
+          <input class="form-control" id="productSupplier" placeholder="예: 도매매, 오너클랜">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">원가 (원)</label>
+          <input class="form-control" id="productCost" type="number" placeholder="8000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">판매가 (원)</label>
+          <input class="form-control" id="productPrice" type="number" placeholder="15900">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">현재 재고</label>
+          <input class="form-control" id="productStock" type="number" placeholder="50">
+        </div>
+        <div class="form-group">
+          <label class="form-label">안전 재고 (알림 기준)</label>
+          <input class="form-control" id="productSafety" type="number" placeholder="10">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">소싱처 링크</label>
+        <input class="form-control" id="productUrl" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">메모</label>
+        <textarea class="form-control" id="productNotes" placeholder="옵션, 경쟁사 가격, 특이사항 등"></textarea>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('productModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveProduct()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="orderModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="orderModalTitle">주문 추가</h3>
+      <button class="close-btn" onclick="closeModal('orderModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="orderId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">주문일 <span class="required">*</span></label>
+          <input class="form-control" id="orderDate" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">상품 <span class="required">*</span></label>
+          <select class="form-control" id="orderProductId">
+            <option value="">선택하세요</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">구매자명 (선택)</label>
+        <input class="form-control" id="orderBuyer" placeholder="예: 홍**">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">수량</label>
+          <input class="form-control" id="orderQty" type="number" min="1" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">판매 단가 (원)</label>
+          <input class="form-control" id="orderPrice" type="number" placeholder="자동입력">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">네이버 수수료율 (%)</label>
+          <input class="form-control" id="orderFeeRate" type="number" step="0.1" placeholder="5.8">
+        </div>
+        <div class="form-group">
+          <label class="form-label">상태</label>
+          <select class="form-control" id="orderStatus">
+            <option value="new">신규주문</option>
+            <option value="preparing">발송준비</option>
+            <option value="shipped">발송완료</option>
+            <option value="confirmed">구매확정</option>
+            <option value="cancelled">취소/반품</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">메모</label>
+        <textarea class="form-control" id="orderNotes" placeholder="배송 특이사항, CS 내용 등"></textarea>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('orderModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveOrder()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="confirmModal">
+  <div class="modal" style="width:360px">
+    <div class="modal-hd"><h3>삭제 확인</h3><button class="close-btn" onclick="closeModal('confirmModal')">✕</button></div>
+    <div class="modal-body"><p id="confirmMsg" style="font-size:14px;line-height:1.6"></p></div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('confirmModal')">취소</button>
+      <button class="btn btn-danger" id="confirmBtn">삭제</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+'use strict';
+
+// ─── STATE ───────────────────────────────────────────────────
+const D_KEY = 'ss_data', S_KEY = 'ss_settings';
+let products = [], orders = [];
+let cfg = {
+  userName: '한상규',
+  supabaseUrl: 'https://fbctahxjzwwzuscjvaxg.supabase.co',
+  supabaseKey: 'sb_publishable_xNUx8DMdQvTgulv4MbOmyQ_8CW9HnQ-',
+  defaultFeeRate: 5.8, defaultSafety: 10
+};
+let sb = null, syncStatus = 'local', currentView = 'dashboard';
+
+// ─── STORAGE ─────────────────────────────────────────────────
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(D_KEY) || '{}');
+    products = d.products || []; orders = d.orders || [];
+    const s = JSON.parse(localStorage.getItem(S_KEY) || '{}');
+    cfg = {...cfg, ...s};
+  } catch(e) {}
+}
+function save() {
+  localStorage.setItem(D_KEY, JSON.stringify({products, orders}));
+  localStorage.setItem(S_KEY, JSON.stringify(cfg));
+  if (sb) syncSupabase();
+}
+
+// ─── SUPABASE ────────────────────────────────────────────────
+async function initSupabase() {
+  if (!cfg.supabaseUrl || !cfg.supabaseKey) return;
+  try {
+    sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    await pullFromSupabase();
+    setSyncStatus('ok');
+  } catch(e) { setSyncStatus('err'); }
+}
+async function pullFromSupabase() {
+  if (!sb) return;
+  try {
+    setSyncStatus('ing');
+    const [pr, or_] = await Promise.all([
+      sb.from('ss_products').select('*').order('created_at'),
+      sb.from('ss_orders').select('*').order('order_date', {ascending:false})
+    ]);
+    if (!pr.error) products = pr.data;
+    if (!or_.error) orders = or_.data;
+    localStorage.setItem(D_KEY, JSON.stringify({products, orders}));
+    setSyncStatus('ok');
+    render();
+  } catch(e) { setSyncStatus('err'); }
+}
+async function syncSupabase() {
+  if (!sb) return;
+  setSyncStatus('ing');
+  try {
+    await Promise.all([
+      sb.from('ss_products').upsert(products),
+      sb.from('ss_orders').upsert(orders)
+    ]);
+    setSyncStatus('ok');
+  } catch(e) { setSyncStatus('err'); }
+}
+function setSyncStatus(s) {
+  syncStatus = s;
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  if (!dot) return;
+  dot.className = 'sync-dot' + (s==='ok'?' ok':s==='err'?' err':s==='ing'?' ing':'');
+  lbl.textContent = s==='ok'?'Supabase 동기화':s==='err'?'동기화 오류':s==='ing'?'동기화 중...':'로컬 저장';
+}
+
+// ─── UTILS ───────────────────────────────────────────────────
+const uid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);
+const fmt = n => Math.round(n||0).toLocaleString('ko-KR');
+const fmtW = n => n ? '₩'+fmt(n) : '-';
+const fmtDate = d => d ? new Date(d+'T00:00').toLocaleDateString('ko-KR',{month:'short',day:'numeric'}) : '';
+const today = () => new Date().toISOString().slice(0,10);
+const thisMonth = () => new Date().toISOString().slice(0,7);
+
+function orderRevenue(o) { return (o.qty||0) * (o.price||0); }
+function orderFee(o) { return orderRevenue(o) * ((o.fee_rate||0)/100); }
+function orderCost(o) {
+  const p = products.find(p=>p.id===o.product_id);
+  return (o.qty||0) * (p?.cost||0);
+}
+function orderMargin(o) { return orderRevenue(o) - orderFee(o) - orderCost(o); }
+
+function statusBadge(s) {
+  const map = {new:['badge-blue','신규주문'],preparing:['badge-yellow','발송준비'],shipped:['badge-purple','발송완료'],confirmed:['badge-green','구매확정'],cancelled:['badge-red','취소/반품']};
+  const [cls,lbl] = map[s]||['badge-gray',s];
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+function productById(id) { return products.find(p=>p.id===id); }
+function productName(id) {
+  const p = productById(id);
+  return p ? p.name : '(삭제됨)';
+}
+function marginPct(cost, price) {
+  if (!price) return 0;
+  return Math.round(((price-cost)/price)*1000)/10;
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────
+function navigate(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+    el.classList.toggle('active', el.dataset.view === view);
+  });
+  const titles = {dashboard:'대시보드',products:'상품/재고',orders:'주문 관리',settlement:'정산/마진',settings:'설정 / 연동'};
+  document.getElementById('pageTitle').textContent = titles[view]||view;
+  closeSidebar();
+  render();
+}
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+}
+
+// ─── RENDER ROUTER ───────────────────────────────────────────
+function render() {
+  document.getElementById('userName').textContent = cfg.userName ? cfg.userName+'의 스토어' : '네이버 쇼핑몰 관리';
+  const views = {dashboard:renderDashboard,products:renderProducts,orders:renderOrders,settlement:renderSettlement,settings:renderSettings};
+  (views[currentView]||renderDashboard)();
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────
+function renderDashboard() {
+  const m = thisMonth();
+  const mOrders = orders.filter(o=>o.order_date&&o.order_date.startsWith(m));
+  const mConfirmed = mOrders.filter(o=>o.status==='confirmed');
+  const mRevenue = mConfirmed.reduce((a,o)=>a+orderRevenue(o),0);
+  const mMargin = mConfirmed.reduce((a,o)=>a+orderMargin(o),0);
+  const pending = orders.filter(o=>['new','preparing','shipped'].includes(o.status));
+  const lowStock = products.filter(p=> (p.stock??0) <= (p.safety??cfg.defaultSafety));
+  const recent = [...orders].sort((a,b)=>b.order_date?.localeCompare(a.order_date||'')||0).slice(0,5);
+
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary" onclick="openOrderModal()">+ 주문 추가</button>`;
+
+  document.getElementById('content').innerHTML = `
+  <div class="stats-grid">
+    <div class="stat c1"><div class="stat-label">등록 상품</div><div class="stat-value">${products.length}</div><div class="stat-sub">전체 SKU</div></div>
+    <div class="stat c2"><div class="stat-label">이달 매출 (확정)</div><div class="stat-value">${mRevenue>=10000?Math.round(mRevenue/10000)+'만':'₩'+fmt(mRevenue)}</div><div class="stat-sub">₩${fmt(mRevenue)}</div></div>
+    <div class="stat c4"><div class="stat-label">이달 마진 (확정)</div><div class="stat-value">${mMargin>=10000?Math.round(mMargin/10000)+'만':'₩'+fmt(mMargin)}</div><div class="stat-sub">수수료·원가 차감</div></div>
+    <div class="stat c3"><div class="stat-label">처리 대기 주문</div><div class="stat-value">${pending.length}</div><div class="stat-sub">신규+발송준비+발송완료</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-header"><span class="card-title">⚠️ 재고 부족 상품</span><button class="btn btn-outline btn-sm" onclick="navigate('products')">전체보기</button></div>
+      ${lowStock.length ? lowStock.slice(0,6).map(p=>`
+        <div class="activity-item">
+          <div class="a-icon">📦</div>
+          <div class="a-content">
+            <div class="a-title">${p.name}</div>
+            <div class="a-time">재고 ${p.stock??0}개 · 안전재고 ${p.safety??cfg.defaultSafety}개</div>
+          </div>
+          <span class="badge badge-red">부족</span>
+        </div>`).join('') : '<div class="empty"><div class="empty-icon">✅</div><p>재고 부족 상품이 없습니다</p></div>'}
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">🕐 최근 주문</span><button class="btn btn-outline btn-sm" onclick="navigate('orders')">전체보기</button></div>
+      ${recent.length ? `<div>${recent.map(o=>`
+        <div class="activity-item">
+          <div class="a-icon">🛒</div>
+          <div class="a-content">
+            <div class="a-title">${productName(o.product_id)} × ${o.qty||1}</div>
+            <div class="a-time">${fmtDate(o.order_date)} · ${fmtW(orderRevenue(o))} · ${statusBadge(o.status)}</div>
+          </div>
+        </div>`).join('')}</div>` : '<div class="empty"><div class="empty-icon">📭</div><p>주문 기록이 없습니다</p></div>'}
+    </div>
+  </div>`;
+}
+
+// ─── PRODUCTS ────────────────────────────────────────────────
+let productSearch = '';
+function renderProducts() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary" onclick="openProductModal()">+ 상품 추가</button>`;
+  const filtered = products.filter(p=> !productSearch || p.name?.includes(productSearch)||p.category?.includes(productSearch)||p.supplier?.includes(productSearch));
+
+  document.getElementById('content').innerHTML = `
+  <div class="toolbar">
+    <div class="search-wrap">🔍 <input placeholder="상품명, 카테고리, 소싱처 검색" value="${productSearch}" oninput="productSearch=this.value;renderProducts()" id="productSearchInput"></div>
+    <span style="font-size:13px;color:var(--muted)">${filtered.length}개 상품</span>
+  </div>
+  <div class="card" style="padding:0">
+  <div class="tbl-wrap">
+  <table>
+    <tr><th>상품명</th><th>카테고리</th><th>원가</th><th>판매가</th><th>마진율</th><th>재고</th><th>소싱처</th><th>관리</th></tr>
+    ${filtered.length ? filtered.map(p => {
+      const low = (p.stock??0) <= (p.safety??cfg.defaultSafety);
+      const mp = marginPct(p.cost||0, p.price||0);
+      return `<tr>
+        <td><div style="font-weight:600">${p.name}</div>${p.notes?`<div style="font-size:12px;color:var(--muted)">${p.notes}</div>`:''}</td>
+        <td>${p.category?`<span class="badge badge-gray">${p.category}</span>`:'-'}</td>
+        <td>${fmtW(p.cost)}</td>
+        <td style="font-weight:700">${fmtW(p.price)}</td>
+        <td><span class="badge ${mp>=30?'badge-green':mp>=10?'badge-yellow':'badge-red'}">${mp}%</span></td>
+        <td><span class="badge ${low?'badge-red':'badge-blue'}">${p.stock??0}개</span></td>
+        <td>
+          <div style="font-size:13px">${p.supplier||'-'}</div>
+          ${p.url?`<a href="${p.url}" target="_blank" style="font-size:11.5px;color:var(--primary)">소싱처 링크 ↗</a>`:''}
+        </td>
+        <td><div class="actions-cell">
+          <button class="btn-ghost btn-sm" onclick="openProductModal('${p.id}')">✏️</button>
+          <button class="btn-ghost btn-sm" onclick="confirmDelete('product','${p.id}','${(p.name||'').replace(/'/g,'')}')">🗑️</button>
+        </div></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="8"><div class="empty"><div class="empty-icon">📦</div><p>상품을 추가해보세요</p></div></td></tr>`}
+  </table></div></div>`;
+  setTimeout(()=>{const el=document.getElementById('productSearchInput');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}},0);
+}
+
+// ─── ORDERS ──────────────────────────────────────────────────
+let orderFilter = {status:'', productId:'', month:''};
+function renderOrders() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary" onclick="openOrderModal()">+ 주문 추가</button>`;
+  let filtered = [...orders];
+  if (orderFilter.status) filtered = filtered.filter(o=>o.status===orderFilter.status);
+  if (orderFilter.productId) filtered = filtered.filter(o=>o.product_id===orderFilter.productId);
+  if (orderFilter.month) filtered = filtered.filter(o=>o.order_date?.startsWith(orderFilter.month));
+  filtered.sort((a,b)=>b.order_date?.localeCompare(a.order_date||'')||0);
+
+  const months = [...new Set(orders.map(o=>o.order_date?.slice(0,7)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+
+  document.getElementById('content').innerHTML = `
+  <div class="toolbar">
+    <select class="filter-select" onchange="orderFilter.status=this.value;renderOrders()">
+      <option value="">전체 상태</option>
+      <option value="new" ${orderFilter.status==='new'?'selected':''}>신규주문</option>
+      <option value="preparing" ${orderFilter.status==='preparing'?'selected':''}>발송준비</option>
+      <option value="shipped" ${orderFilter.status==='shipped'?'selected':''}>발송완료</option>
+      <option value="confirmed" ${orderFilter.status==='confirmed'?'selected':''}>구매확정</option>
+      <option value="cancelled" ${orderFilter.status==='cancelled'?'selected':''}>취소/반품</option>
+    </select>
+    <select class="filter-select" onchange="orderFilter.productId=this.value;renderOrders()">
+      <option value="">전체 상품</option>
+      ${products.map(p=>`<option value="${p.id}" ${orderFilter.productId===p.id?'selected':''}>${p.name}</option>`).join('')}
+    </select>
+    <select class="filter-select" onchange="orderFilter.month=this.value;renderOrders()">
+      <option value="">전체 기간</option>
+      ${months.map(m=>`<option value="${m}" ${orderFilter.month===m?'selected':''}>${m}</option>`).join('')}
+    </select>
+    <span style="font-size:13px;color:var(--muted)">${filtered.length}건 · 매출 합계 ${fmtW(filtered.reduce((a,o)=>a+orderRevenue(o),0))}</span>
+  </div>
+  <div class="card" style="padding:0">
+  <div class="tbl-wrap">
+  <table>
+    <tr><th>주문일</th><th>상품</th><th>구매자</th><th>수량</th><th>판매가</th><th>수수료율</th><th>매출</th><th>상태</th><th>관리</th></tr>
+    ${filtered.length ? filtered.map(o=>`<tr>
+      <td style="white-space:nowrap">${fmtDate(o.order_date)}</td>
+      <td>${productName(o.product_id)}</td>
+      <td>${o.buyer||'-'}</td>
+      <td>${o.qty||1}개</td>
+      <td>${fmtW(o.price)}</td>
+      <td>${o.fee_rate||0}%</td>
+      <td style="font-weight:700">${fmtW(orderRevenue(o))}</td>
+      <td>
+        <select class="form-control" style="padding:4px 8px;font-size:12px;width:auto" onchange="quickStatus('${o.id}',this.value)">
+          <option value="new" ${o.status==='new'?'selected':''}>신규주문</option>
+          <option value="preparing" ${o.status==='preparing'?'selected':''}>발송준비</option>
+          <option value="shipped" ${o.status==='shipped'?'selected':''}>발송완료</option>
+          <option value="confirmed" ${o.status==='confirmed'?'selected':''}>구매확정</option>
+          <option value="cancelled" ${o.status==='cancelled'?'selected':''}>취소/반품</option>
+        </select>
+      </td>
+      <td><div class="actions-cell">
+        <button class="btn-ghost btn-sm" onclick="openOrderModal('${o.id}')">✏️</button>
+        <button class="btn-ghost btn-sm" onclick="confirmDelete('order','${o.id}','${productName(o.product_id).replace(/'/g,'')} 주문')">🗑️</button>
+      </div></td>
+    </tr>`).join('') : `<tr><td colspan="9"><div class="empty"><div class="empty-icon">🛒</div><p>주문 기록이 없습니다</p></div></td></tr>`}
+  </table></div></div>`;
+}
+
+function quickStatus(id, status) {
+  const o = orders.find(o=>o.id===id);
+  if (!o) return;
+  const prevConfirmed = o.status==='confirmed';
+  o.status = status;
+  // adjust stock when moving into/out of shipped-or-later states
+  const p = productById(o.product_id);
+  if (p && !prevConfirmed && status==='confirmed') {
+    // no additional stock change here; stock is deducted at shipping time below
+  }
+  save(); render();
+}
+
+// ─── SETTLEMENT ──────────────────────────────────────────────
+function renderSettlement() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-outline" onclick="copySettlementReport()">📋 보고서 복사</button>`;
+
+  const confirmed = orders.filter(o=>o.status==='confirmed');
+  const totalRevenue = confirmed.reduce((a,o)=>a+orderRevenue(o),0);
+  const totalFee = confirmed.reduce((a,o)=>a+orderFee(o),0);
+  const totalCost = confirmed.reduce((a,o)=>a+orderCost(o),0);
+  const totalMargin = confirmed.reduce((a,o)=>a+orderMargin(o),0);
+  const pendingRevenue = orders.filter(o=>['new','preparing','shipped'].includes(o.status)).reduce((a,o)=>a+orderRevenue(o),0);
+
+  const monthMap = {};
+  confirmed.forEach(o=>{
+    if (!o.order_date) return;
+    const m = o.order_date.slice(0,7);
+    if (!monthMap[m]) monthMap[m] = {revenue:0, fee:0, cost:0, margin:0, count:0};
+    monthMap[m].revenue += orderRevenue(o);
+    monthMap[m].fee += orderFee(o);
+    monthMap[m].cost += orderCost(o);
+    monthMap[m].margin += orderMargin(o);
+    monthMap[m].count++;
+  });
+  const months = Object.keys(monthMap).sort((a,b)=>b.localeCompare(a)).slice(0,12);
+  const maxMargin = Math.max(...months.map(m=>monthMap[m].margin), 1);
+
+  document.getElementById('content').innerHTML = `
+  <div class="stats-grid">
+    <div class="stat c1"><div class="stat-label">확정 매출</div><div class="stat-value">${totalRevenue>=10000?Math.round(totalRevenue/10000)+'만':'₩'+fmt(totalRevenue)}</div><div class="stat-sub">₩${fmt(totalRevenue)}</div></div>
+    <div class="stat c2"><div class="stat-label">확정 마진</div><div class="stat-value">${totalMargin>=10000?Math.round(totalMargin/10000)+'만':'₩'+fmt(totalMargin)}</div><div class="stat-sub">수수료 ₩${fmt(totalFee)} · 원가 ₩${fmt(totalCost)}</div></div>
+    <div class="stat c3"><div class="stat-label">처리중 예상매출</div><div class="stat-value">${pendingRevenue>=10000?Math.round(pendingRevenue/10000)+'만':'₩'+fmt(pendingRevenue)}</div><div class="stat-sub">신규+발송준비+발송완료</div></div>
+    <div class="stat c4"><div class="stat-label">확정 주문</div><div class="stat-value">${confirmed.length}</div><div class="stat-sub">누적 건수</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">📅 월별 마진</span></div>
+    ${months.length ? months.map(m=>{
+      const d = monthMap[m];
+      const pct = Math.round(d.margin/maxMargin*100)||2;
+      return `<div class="bar-row">
+        <div class="bar-lbl">${m.slice(5)}월</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+        <div class="bar-val">₩${d.margin>=10000?Math.round(d.margin/10000)+'만':fmt(d.margin)}</div>
+      </div>`;
+    }).join('') : '<div class="empty"><p>정산 데이터가 없습니다</p></div>'}
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">📋 월별 상세</span></div>
+    <div class="tbl-wrap"><table>
+      <tr><th>월</th><th>확정 건수</th><th>매출</th><th>수수료</th><th>원가</th><th>마진</th><th>마진율</th></tr>
+      ${months.map(m=>{
+        const d = monthMap[m];
+        const mp = d.revenue ? Math.round(d.margin/d.revenue*1000)/10 : 0;
+        return `<tr>
+          <td style="font-weight:600">${m}</td>
+          <td>${d.count}건</td>
+          <td>₩${fmt(d.revenue)}</td>
+          <td style="color:var(--warning)">₩${fmt(d.fee)}</td>
+          <td style="color:var(--muted)">₩${fmt(d.cost)}</td>
+          <td style="font-weight:700;color:var(--success)">₩${fmt(d.margin)}</td>
+          <td>${mp}%</td>
+        </tr>`;
+      }).join('')}
+    </table></div>
+  </div>`;
+}
+
+function copySettlementReport() {
+  const confirmed = orders.filter(o=>o.status==='confirmed');
+  const lines = ['스마트스토어 정산 보고서', '='.repeat(30)];
+  const totalRevenue = confirmed.reduce((a,o)=>a+orderRevenue(o),0);
+  const totalMargin = confirmed.reduce((a,o)=>a+orderMargin(o),0);
+  lines.push(`총 확정 매출: ₩${fmt(totalRevenue)}`);
+  lines.push(`총 확정 마진: ₩${fmt(totalMargin)}`);
+  lines.push(`총 확정 주문: ${confirmed.length}건`);
+  lines.push('');
+  const monthMap = {};
+  confirmed.forEach(o=>{if(!o.order_date)return;const m=o.order_date.slice(0,7);if(!monthMap[m])monthMap[m]={margin:0,count:0};monthMap[m].margin+=orderMargin(o);monthMap[m].count++});
+  Object.keys(monthMap).sort((a,b)=>b.localeCompare(a)).forEach(m=>{lines.push(`${m}: ₩${fmt(monthMap[m].margin)} (${monthMap[m].count}건)`)});
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>alert('보고서가 클립보드에 복사됐습니다!'));
+}
+
+// ─── SETTINGS ────────────────────────────────────────────────
+function renderSettings() {
+  document.getElementById('topbarActions').innerHTML = '';
+  document.getElementById('content').innerHTML = `
+  <div class="grid2">
+    <div>
+      <div class="card settings-section">
+        <div class="settings-title">👤 기본 설정</div>
+        <div class="form-group"><label class="form-label">이름</label><input class="form-control" id="cfgName" value="${cfg.userName}" placeholder="이름"></div>
+        <div class="form-group"><label class="form-label">기본 네이버 수수료율 (%)</label><input class="form-control" id="cfgFeeRate" type="number" step="0.1" value="${cfg.defaultFeeRate}"></div>
+        <div class="form-group"><label class="form-label">기본 안전재고 기준</label><input class="form-control" id="cfgSafety" type="number" value="${cfg.defaultSafety}"></div>
+        <button class="btn btn-primary" onclick="saveSettings()">저장</button>
+      </div>
+      <div class="card settings-section">
+        <div class="settings-title">💡 활용 가이드</div>
+        <div style="font-size:13.5px;line-height:1.8;color:var(--text)">
+          <p style="margin-bottom:8px"><b>챗에서:</b> 상품 리서치, 상세페이지 카피, 키워드/SEO, CS 답변 초안을 물어보세요.</p>
+          <p style="margin-bottom:8px"><b>이 트래커에서:</b> 상품 원가/재고, 주문 상태, 확정 마진을 기록하세요.</p>
+          <p><b>코드로 확장:</b> 네이버 커머스API 키가 있으면 주문 자동 수집도 가능합니다 — 필요할 때 요청하세요.</p>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card settings-section">
+        <div class="settings-title">☁️ Supabase 연동 (크로스 디바이스 동기화)</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px">설정하면 핸드폰/패드/PC 모두 동기화됩니다</div>
+        <div class="form-group"><label class="form-label">Supabase URL</label><input class="form-control" id="cfgSbUrl" value="${cfg.supabaseUrl}" placeholder="https://xxx.supabase.co"></div>
+        <div class="form-group"><label class="form-label">Supabase Anon Key</label><input class="form-control" id="cfgSbKey" value="${cfg.supabaseKey}" placeholder="eyJ..." type="password"></div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn btn-primary" onclick="saveSupabaseSettings()">연동 저장</button>
+          <span class="sync-label" id="settingsSyncLabel">${syncStatus==='ok'?'✅ 연결됨':syncStatus==='err'?'❌ 오류':'로컬 모드'}</span>
+        </div>
+        <div style="margin-top:16px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--muted)">Supabase에서 실행할 SQL (테이블 생성):</div>
+          <div class="code-block">create table ss_products (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  category text, supplier text, url text,
+  cost int, price int,
+  stock int default 0, safety int default 10,
+  notes text,
+  created_at timestamptz default now()
+);
+create table ss_orders (
+  id uuid default gen_random_uuid() primary key,
+  product_id uuid references ss_products(id),
+  order_date date, buyer text,
+  qty int default 1, price int,
+  fee_rate numeric default 5.8,
+  status text default 'new',
+  notes text,
+  created_at timestamptz default now()
+);</div>
+          <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="copySQL()">📋 SQL 복사</button>
+        </div>
+      </div>
+      <div class="card settings-section">
+        <div class="settings-title">📲 모바일 설치 (홈 화면 추가)</div>
+        <div style="font-size:13.5px;line-height:1.8;color:var(--text)">
+          <b>iPhone/iPad:</b> Safari → 공유 버튼 → 홈 화면에 추가<br>
+          <b>Android:</b> Chrome 메뉴 → 홈 화면에 추가<br>
+          <b>PC:</b> 즐겨찾기에 저장 또는 북마크 바 등록
+          <div style="margin-top:10px;padding:10px;background:#dcfce7;border-radius:8px;font-size:12.5px">
+            💡 Supabase 연동 시 모든 기기에서 실시간 동기화됩니다
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function saveSettings() {
+  cfg.userName = document.getElementById('cfgName').value;
+  cfg.defaultFeeRate = parseFloat(document.getElementById('cfgFeeRate').value)||5.8;
+  cfg.defaultSafety = parseInt(document.getElementById('cfgSafety').value)||10;
+  save(); render(); alert('저장됐습니다!');
+}
+async function saveSupabaseSettings() {
+  cfg.supabaseUrl = document.getElementById('cfgSbUrl').value.trim();
+  cfg.supabaseKey = document.getElementById('cfgSbKey').value.trim();
+  save();
+  if (cfg.supabaseUrl && cfg.supabaseKey) {
+    await initSupabase();
+    const lbl = document.getElementById('settingsSyncLabel');
+    if (lbl) lbl.textContent = syncStatus==='ok'?'✅ 연결됨':syncStatus==='err'?'❌ URL/Key 확인 필요':'로컬 모드';
+  }
+}
+function copySQL() {
+  const sql = `create table ss_products (id uuid default gen_random_uuid() primary key, name text not null, category text, supplier text, url text, cost int, price int, stock int default 0, safety int default 10, notes text, created_at timestamptz default now());\ncreate table ss_orders (id uuid default gen_random_uuid() primary key, product_id uuid references ss_products(id), order_date date, buyer text, qty int default 1, price int, fee_rate numeric default 5.8, status text default 'new', notes text, created_at timestamptz default now());`;
+  navigator.clipboard.writeText(sql).then(()=>alert('SQL이 복사됐습니다!'));
+}
+
+// ─── PRODUCT CRUD ────────────────────────────────────────────
+function openProductModal(id) {
+  const p = id ? products.find(p=>p.id===id) : null;
+  document.getElementById('productModalTitle').textContent = p ? '상품 수정' : '상품 추가';
+  document.getElementById('productId').value = p?.id||'';
+  document.getElementById('productName').value = p?.name||'';
+  document.getElementById('productCategory').value = p?.category||'';
+  document.getElementById('productSupplier').value = p?.supplier||'';
+  document.getElementById('productCost').value = p?.cost||'';
+  document.getElementById('productPrice').value = p?.price||'';
+  document.getElementById('productStock').value = p?.stock??0;
+  document.getElementById('productSafety').value = p?.safety??cfg.defaultSafety;
+  document.getElementById('productUrl').value = p?.url||'';
+  document.getElementById('productNotes').value = p?.notes||'';
+  openModal('productModal');
+}
+function saveProduct() {
+  const name = document.getElementById('productName').value.trim();
+  if (!name) { alert('상품명을 입력해주세요'); return; }
+  const id = document.getElementById('productId').value || uid();
+  const existing = products.find(p=>p.id===id);
+  const data = {
+    id, name, category:$v('productCategory'), supplier:$v('productSupplier'),
+    cost:parseInt($v('productCost'))||0, price:parseInt($v('productPrice'))||0,
+    stock:parseInt($v('productStock'))||0, safety:parseInt($v('productSafety'))||cfg.defaultSafety,
+    url:$v('productUrl'), notes:$v('productNotes'),
+    created_at: existing?.created_at || new Date().toISOString()
+  };
+  if (existing) Object.assign(existing, data);
+  else products.push(data);
+  save(); closeModal('productModal'); render();
+}
+function deleteProduct(id) {
+  products = products.filter(p=>p.id!==id);
+  orders = orders.filter(o=>o.product_id!==id);
+  save(); render();
+}
+
+// ─── ORDER CRUD ──────────────────────────────────────────────
+function openOrderModal(id) {
+  const o = id ? orders.find(o=>o.id===id) : null;
+  document.getElementById('orderModalTitle').textContent = o ? '주문 수정' : '주문 추가';
+  document.getElementById('orderId').value = o?.id||'';
+  document.getElementById('orderDate').value = o?.order_date||today();
+  document.getElementById('orderBuyer').value = o?.buyer||'';
+  document.getElementById('orderQty').value = o?.qty||1;
+  document.getElementById('orderPrice').value = o?.price||'';
+  document.getElementById('orderFeeRate').value = o?.fee_rate??cfg.defaultFeeRate;
+  document.getElementById('orderStatus').value = o?.status||'new';
+  document.getElementById('orderNotes').value = o?.notes||'';
+
+  const sel = document.getElementById('orderProductId');
+  sel.innerHTML = '<option value="">선택하세요</option>' + products.map(p=>`<option value="${p.id}" ${o?.product_id===p.id?'selected':''}>${p.name}</option>`).join('');
+  sel.onchange = () => {
+    const p = products.find(p=>p.id===sel.value);
+    if (p?.price && !document.getElementById('orderPrice').value) document.getElementById('orderPrice').value = p.price;
+  };
+
+  openModal('orderModal');
+}
+function saveOrder() {
+  const productId = document.getElementById('orderProductId').value;
+  const date = document.getElementById('orderDate').value;
+  if (!productId) { alert('상품을 선택해주세요'); return; }
+  if (!date) { alert('주문일을 입력해주세요'); return; }
+  const id = document.getElementById('orderId').value || uid();
+  const existing = orders.find(o=>o.id===id);
+  const data = {
+    id, product_id:productId, order_date:date, buyer:$v('orderBuyer'),
+    qty:parseInt($v('orderQty'))||1,
+    price:parseInt($v('orderPrice'))||0,
+    fee_rate:parseFloat($v('orderFeeRate'))??cfg.defaultFeeRate,
+    status:$v('orderStatus')||'new',
+    notes:$v('orderNotes'),
+    created_at: existing?.created_at||new Date().toISOString()
+  };
+  if (existing) Object.assign(existing, data);
+  else orders.push(data);
+  save(); closeModal('orderModal'); render();
+}
+function deleteOrder(id) { orders=orders.filter(o=>o.id!==id); save(); render(); }
+
+// ─── CONFIRM DELETE ──────────────────────────────────────────
+function confirmDelete(type, id, name) {
+  document.getElementById('confirmMsg').textContent = `"${name}"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`;
+  document.getElementById('confirmBtn').onclick = () => {
+    if (type==='product') deleteProduct(id);
+    else deleteOrder(id);
+    closeModal('confirmModal');
+  };
+  openModal('confirmModal');
+}
+
+// ─── MODAL HELPERS ───────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.overlay').forEach(el => {
+  el.addEventListener('click', e => { if(e.target===el) el.classList.remove('show'); });
+});
+const $v = id => document.getElementById(id)?.value || '';
+
+// ─── INIT ────────────────────────────────────────────────────
+load();
+initSupabase().then(render);
+
+// ESC to close modals
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') document.querySelectorAll('.overlay.show').forEach(el=>el.classList.remove('show'));
+});
+</script>
+</body>
+</html>
