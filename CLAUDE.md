@@ -14,6 +14,7 @@
 |------|------|-----|
 | `index.html` | 개인 습관/목표 주간 트래커 | https://sgspeed04.github.io/Tracker/ |
 | `consulting.html` | 자문 서비스 CRM + 수입 관리 | https://sgspeed04.github.io/Tracker/consulting.html |
+| `smartstore.html` | 네이버 스마트스토어 관리 (상품/재고 + 주문 + 정산/마진) | https://sgspeed04.github.io/Tracker/smartstore.html |
 
 ## 기술 스택
 - **프론트엔드**: Vanilla JS + HTML/CSS (빌드 불필요, 단일 파일)
@@ -25,7 +26,7 @@
 ## Supabase 설정
 - 프로젝트: sgspeed04's Project (sghan.biz)
 - URL: https://fbctahxjzwwzuscjvaxg.supabase.co
-- 테이블: `cm_clients`, `cm_sessions`
+- 테이블: `cm_clients`, `cm_sessions`, `ss_products`, `ss_orders`
 - RLS: 활성화됨 (anon 정책 적용)
 
 ## consulting.html 주요 기능
@@ -35,6 +36,14 @@
 - 수입 통계 (월별 차트, 플랫폼별 분석)
 - Gmail 연동 (이메일 템플릿, 클라이언트 검색)
 - Supabase 크로스 디바이스 동기화
+
+## smartstore.html 주요 기능
+- 상품/재고 관리 (상품명/카테고리/원가/판매가/재고/안전재고/소싱처 링크) — 안전재고 이하 시 대시보드에 부족 알림
+- 주문 관리 (주문일/구매자/수량/판매가/네이버 수수료율/상태)
+- 상태 흐름: 신규주문 → 발송준비 → 발송완료 → 구매확정 (취소/반품 분기)
+- 정산/마진: 구매확정 주문 기준 매출·수수료·원가·마진을 월별로 집계
+- Supabase 크로스 디바이스 동기화 (consulting.html과 동일 패턴, 테이블 `ss_products`/`ss_orders`)
+- 네이버 커머스API 연동 자동화는 아직 미구현 — API 키 발급 후 필요 시 추가 (현재는 수기 입력)
 
 ## index.html 주요 기능
 - 일일 습관 추적 (월~금): 운동, 식단, 중국어, 영어
