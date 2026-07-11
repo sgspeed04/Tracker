@@ -5,14 +5,15 @@
 - 부업: 전문가 자문 서비스 (GLG, Coupang, LinkedIn, 직접 클라이언트)
 - 전문 분야: 해외 영업, 무역/수출, ERP/BI, 이커머스
 
+## 관련 저장소
+부동산 관련 도구(위반건축물 리드, 재개발·재건축 지도)는 [sgspeed04/PropertyLeads](https://github.com/sgspeed04/PropertyLeads)로 분리했습니다 — 공공데이터 자동수집 인프라를 공유하는 별개 사업이라 이 저장소와는 독립적으로 관리합니다.
+
 ## 프로젝트 구조
 
 | 파일 | 용도 | URL |
 |------|------|-----|
 | `index.html` | 개인 습관/목표 주간 트래커 | https://sgspeed04.github.io/Tracker/ |
 | `consulting.html` | 자문 서비스 CRM + 수입 관리 | https://sgspeed04.github.io/Tracker/consulting.html |
-| `redevelopment.html` | 수도권 재개발·재건축 지도 (공공데이터 자동수집) | https://sgspeed04.github.io/Tracker/redevelopment.html |
-| `violations.html` | 위반건축물 리드 관리 + 건축사 협업 CRM | https://sgspeed04.github.io/Tracker/violations.html |
 
 ## 기술 스택
 - **프론트엔드**: Vanilla JS + HTML/CSS (빌드 불필요, 단일 파일)
@@ -24,7 +25,7 @@
 ## Supabase 설정
 - 프로젝트: sgspeed04's Project (sghan.biz)
 - URL: https://fbctahxjzwwzuscjvaxg.supabase.co
-- 테이블: `cm_clients`, `cm_sessions`, `viol_architects`, `viol_leads`
+- 테이블: `cm_clients`, `cm_sessions`
 - RLS: 활성화됨 (anon 정책 적용)
 
 ## consulting.html 주요 기능
@@ -34,20 +35,6 @@
 - 수입 통계 (월별 차트, 플랫폼별 분석)
 - Gmail 연동 (이메일 템플릿, 클라이언트 검색)
 - Supabase 크로스 디바이스 동기화
-
-## violations.html 주요 기능
-- 위반건축물 리드 관리 (주소/구·시/위반유형/확인일/상태/출처링크)
-- 상태 흐름: 신규 → 컨택완료 → 건축사소개 → 계약성사 → 수수료수령 (보류/중단 분기)
-- 건축사 파트너 관리 (전문분야/연락처/소개 수수료율) + 리드 배정
-- 대시보드: 구/시별 리드 분포, 확정·예상 소개 수수료 합계
-- 구/시 입력 시 해당 지역 위반건축물 공고 검색 바로가기 (전국 통합 오픈API 미공개 — 수기 등록 방식)
-- Supabase 크로스 디바이스 동기화 (consulting.html과 동일 패턴)
-- **자동수집 공고 탭**: 강남·광진·송파·성동·용산 5개 구청 공시송달/고시공고 게시판 스크래핑 결과(`data/violations_notices.json`)를 보여주고, 바로 리드로 등록하거나 숨길 수 있음
-  - `scripts/fetch-violations.js`가 `.github/workflows/update-violations.yml`을 통해 매일 00:30 KST 자동 실행
-  - 위반건축물 관련 키워드(철거명령/이행강제금/무단증축 등)로 제목을 필터링 — 게시판들이 다른 기관 공고도 섞어 올리기 때문
-  - 과거 아카이브 백필은 게시글 번호 차이가 너무 커서 비현실적 — 매일 신규 공고만 수집하는 용도
-  - 강동구는 목록이 자바스크립트로 렌더링되는 방식(CSR)이라 현재 방식(HTTP 요청 + HTML 파싱)으로 불가해 제외 — headless 브라우저 도입 시 재검토 가능
-  - 다른 구/시로 확장하려면 `scripts/fetch-violations.js`의 `BOARDS` 배열에 게시판 URL 추가
 
 ## index.html 주요 기능
 - 일일 습관 추적 (월~금): 운동, 식단, 중국어, 영어
