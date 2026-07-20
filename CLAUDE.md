@@ -8,6 +8,8 @@
 ## 관련 저장소
 부동산 관련 도구(위반건축물 리드, 재개발·재건축 지도)는 [sgspeed04/PropertyLeads](https://github.com/sgspeed04/PropertyLeads)로 분리했습니다 — 공공데이터 자동수집 인프라를 공유하는 별개 사업이라 이 저장소와는 독립적으로 관리합니다.
 
+계량기 입찰(tenders.html)도 원래는 PropertyLeads와 같은 이유로 별도 저장소(`sgspeed04/MeterBids`)로 분리할 계획이었으나, GitHub App 연동 권한이 기존에 설치된 저장소로 한정되어 있어 새 저장소를 자동으로 만들지 못해 우선 이 저장소 안에 두었습니다. `MeterBids` 빈 저장소를 만들고 앱 접근 권한을 부여하면 PropertyLeads 때와 동일한 방식(파일 이관 + Secrets 재등록)으로 분리할 수 있습니다.
+
 ## 프로젝트 구조
 
 | 파일 | 용도 | URL |
@@ -15,6 +17,7 @@
 | `index.html` | 개인 습관/목표 주간 트래커 | https://sgspeed04.github.io/Tracker/ |
 | `consulting.html` | 자문 서비스 CRM + 수입 관리 | https://sgspeed04.github.io/Tracker/consulting.html |
 | `smartstore.html` | 네이버 스마트스토어 관리 (상품/재고 + 주문 + 정산/마진) | https://sgspeed04.github.io/Tracker/smartstore.html |
+| `tenders.html` | 해외 계량기(전기/가스/수도) 입찰 트래커 — 인도부터 시작, 동남아·서남아·중국 확대 예정 | https://sgspeed04.github.io/Tracker/tenders.html |
 
 ## 기술 스택
 - **프론트엔드**: Vanilla JS + HTML/CSS (빌드 불필요, 단일 파일)
@@ -26,7 +29,7 @@
 ## Supabase 설정
 - 프로젝트: sgspeed04's Project (sghan.biz)
 - URL: https://fbctahxjzwwzuscjvaxg.supabase.co
-- 테이블: `cm_clients`, `cm_sessions`, `ss_products`, `ss_orders`
+- 테이블: `cm_clients`, `cm_sessions`, `ss_products`, `ss_orders`, `mb_tenders`
 - RLS: 활성화됨 (anon 정책 적용)
 
 ## consulting.html 주요 기능
@@ -44,6 +47,17 @@
 - 정산/마진: 구매확정 주문 기준 매출·수수료·원가·마진을 월별로 집계
 - Supabase 크로스 디바이스 동기화 (consulting.html과 동일 패턴, 테이블 `ss_products`/`ss_orders`)
 - 네이버 커머스API 연동 자동화는 아직 미구현 — API 키 발급 후 필요 시 추가 (현재는 수기 입력)
+
+## tenders.html 주요 기능
+- 해외 계량기(전기/가스/수도/스마트미터) 입찰(tender) 리드 관리 — 국가/계량기유형/발주기관/입찰번호/출처/공고일/마감일/규모/상태/메모
+- 상태 흐름: 신규 → 검토중 → 제안서작성 → 제출완료 → 낙찰/유찰 (보류 분기)
+- 대시보드: 마감임박(14일 이내) 알림, 국가별·계량기유형별 분포, 최근 등록 리드
+- **국가별 바로가기**: 인도(GeM/CPPP)·베트남(VNEPS)·태국(e-GP)·필리핀(PhilGEPS)·인도네시아(INAPROC)·방글라데시(e-GP)·파키스탄(PPRA)·중국(CCGP) 조달포털 홈페이지 링크 + Google 사이트 검색 바로가기(추천 키워드 포함) — 수동 검색 후 발견한 입찰을 바로 등록하는 방식이 현재 가장 안정적
+- **자동수집 후보 탭(파일럿, 미검증)**: `scripts/fetch-india-tenders.js`가 `.github/workflows/update-india-tenders.yml`을 통해 매일 05:00 KST 자동 실행, CPPP·GeM "최신 공고" 목록에서 제목에 계량기 관련 키워드(meter/AMI/AMR)가 있는 것만 걸러 `data/india_tenders.json`에 저장
+  - ⚠️ 개발 중 GeM(bidplus.gem.gov.in)·CPPP(eprocure.gov.in) 모두 이 세션의 프록시와 WebFetch 양쪽에서 HTTP 403을 반환 — 홈페이지 접근조차 막혀 실제 HTML 구조를 검증하지 못한 채 선택자를 방어적으로 작성했다. 데이터센터 IP 대역 차단(WAF)으로 추정되며 GitHub Actions 러너에서도 막힐 가능성이 있음 — PropertyLeads의 VWorld/Azure IP 차단과 동일 패턴. 실제 동작 여부는 Actions 탭의 실행 로그에서 확인할 것(0건이면 선택자 진단 로그가 남음)
+  - 실패해도 기존 데이터를 덮어쓰지 않고 `updated_at`만 갱신하도록 설계됨 — 자동수집이 막혀 있어도 수동 등록 워크플로에는 영향 없음
+  - 확장 시 `scripts/fetch-india-tenders.js`의 `TARGETS` 배열에 대상 추가, 다른 국가로 확장하려면 새 `fetch-<country>-tenders.js` 스크립트 + workflow 추가
+- Supabase 크로스 디바이스 동기화 (테이블 `mb_tenders`)
 
 ## index.html 주요 기능
 - 일일 습관 추적 (월~금): 운동, 식단, 중국어, 영어
