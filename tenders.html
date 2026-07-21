@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>해외 계량기 입찰 트래커</title>
+<style>
+:root {
+  --primary: #2563eb; --primary-dark: #1d4ed8; --success: #16a34a;
+  --warning: #d97706; --danger: #dc2626; --purple: #7c3aed;
+  --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0;
+  --text: #0f172a; --muted: #64748b; --sidebar: #0f172a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.app{display:flex;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:220px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;position:fixed;height:100vh;z-index:200;transition:transform .3s}
+.sidebar-logo{padding:22px 18px 18px;border-bottom:1px solid #1e293b}
+.sidebar-logo h1{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.sidebar-logo p{font-size:11px;color:#64748b;margin-top:3px}
+.sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 18px;cursor:pointer;color:#94a3b8;font-size:13.5px;font-weight:500;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{background:#1e293b;color:#fff}
+.nav-item.active{background:#1e293b;color:#fff;border-left-color:var(--primary)}
+.nav-icon{font-size:16px;width:18px;text-align:center}
+.sidebar-footer{padding:14px 18px;border-top:1px solid #1e293b}
+.sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#64748b;margin-right:6px}
+.sync-dot.ok{background:#22c55e} .sync-dot.err{background:#ef4444} .sync-dot.ing{background:#f59e0b;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sync-label{font-size:11px;color:#64748b}
+
+/* MAIN */
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar h2{font-size:19px;font-weight:700}
+.topbar-right{display:flex;gap:10px;align-items:center}
+.hamburger{display:none;background:none;border:none;cursor:pointer;font-size:20px;padding:4px}
+.content{padding:28px;flex:1}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px}
+.stat-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.stat-value{font-size:26px;font-weight:800}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.stat.c1 .stat-value{color:var(--primary)} .stat.c2 .stat-value{color:var(--success)}
+.stat.c3 .stat-value{color:var(--warning)} .stat.c4 .stat-value{color:var(--purple)}
+
+/* CARDS */
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:18px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.card-title{font-size:15px;font-weight:700}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+/* BUTTONS */
+.btn{padding:8px 15px;border-radius:8px;border:none;cursor:pointer;font-size:13.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:all .15s;text-decoration:none}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--bg)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-warning{background:var(--warning);color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:6px}
+.btn-ghost{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 8px;border-radius:6px;font-size:13px;transition:all .15s}.btn-ghost:hover{background:var(--bg);color:var(--text)}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:10px 14px;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:13px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+.actions-cell{display:flex;gap:4px;align-items:center}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.badge-blue{background:#dbeafe;color:#1d4ed8} .badge-green{background:#dcfce7;color:#15803d}
+.badge-yellow{background:#fef3c7;color:#92400e} .badge-purple{background:#ede9fe;color:#6d28d9}
+.badge-red{background:#fee2e2;color:#b91c1c} .badge-gray{background:#f1f5f9;color:#475569}
+.badge-orange{background:#fff7ed;color:#c2410c} .badge-teal{background:#ccfbf1;color:#0f766e}
+
+/* SEARCH & FILTER */
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.search-wrap{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 12px}
+.search-wrap input{border:none;outline:none;font-size:13.5px;width:180px;background:transparent}
+select.filter-select{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13.5px;background:#fff;cursor:pointer;outline:none}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:560px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-hd{padding:22px 22px 0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:1;border-bottom:1px solid var(--border);padding-bottom:14px}
+.modal-hd h3{font-size:17px;font-weight:700}
+.modal-body{padding:20px 22px}
+.modal-ft{padding:0 22px 20px;display:flex;gap:10px;justify-content:flex-end}
+.close-btn{background:none;border:none;cursor:pointer;font-size:22px;color:var(--muted);padding:2px 6px}
+
+/* FORMS */
+.form-group{margin-bottom:15px}
+.form-label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+.form-control{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13.5px;outline:none;transition:border-color .15s;background:#fff}
+.form-control:focus{border-color:var(--primary)}
+textarea.form-control{resize:vertical;min-height:80px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+.required{color:var(--danger)}
+
+/* DEADLINE LIST */
+.dl-item{display:flex;gap:14px;padding:12px;background:var(--bg);border-radius:10px;margin-bottom:10px}
+.dl-days{background:var(--warning);color:#fff;border-radius:8px;padding:8px 10px;text-align:center;min-width:52px}
+.dl-days.urgent{background:var(--danger)}
+.dl-n{font-size:18px;font-weight:800;line-height:1}
+.dl-u{font-size:10px;text-transform:uppercase;opacity:.9}
+.dl-info{flex:1}
+.dl-title{font-weight:700;font-size:14px}
+.dl-meta{font-size:12.5px;color:var(--muted);margin-top:1px}
+.dl-badges{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+
+/* BAR CHART */
+.bar-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.bar-lbl{width:100px;font-size:13px;color:var(--muted);text-align:right}
+.bar-track{flex:1;background:var(--bg);border-radius:4px;height:9px}
+.bar-fill{height:100%;border-radius:4px;background:var(--primary);min-width:4px;transition:width .5s}
+.bar-val{width:60px;font-size:13px;font-weight:700}
+
+/* SOURCES / QUICK SEARCH */
+.source-card{border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px}
+.source-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.source-country{font-size:14px;font-weight:700}
+.source-links{display:flex;gap:8px;flex-wrap:wrap}
+
+/* SETTINGS */
+.settings-section{margin-bottom:28px}
+.settings-title{font-size:14px;font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.code-block{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:8px;font-size:12px;font-family:monospace;overflow-x:auto;white-space:pre;margin-top:10px}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:48px 16px;color:var(--muted)}
+.empty-icon{font-size:44px;margin-bottom:10px}
+.empty p{font-size:14px}
+
+/* TABS */
+.tab-bar{display:flex;gap:4px;background:var(--bg);border-radius:9px;padding:4px;margin-bottom:20px;border:1px solid var(--border)}
+.tab-btn{flex:1;padding:7px 12px;border:none;background:transparent;border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .15s}
+.tab-btn.active{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+/* MOBILE */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}
+.sidebar-overlay.show{display:block}
+@media(max-width:900px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .grid2{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .hamburger{display:block}
+  .content{padding:16px}
+  .stats-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .form-row{grid-template-columns:1fr}
+  .topbar{padding:12px 16px}
+  .modal{width:98vw}
+  .search-wrap input{width:130px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <h1>⚡ 계량기 입찰</h1>
+    <p>인도 → 동남아·서남아·중국</p>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" onclick="navigate('dashboard')" data-view="dashboard">
+      <span class="nav-icon">📊</span> 대시보드
+    </div>
+    <div class="nav-item" onclick="navigate('tenders')" data-view="tenders">
+      <span class="nav-icon">📋</span> 입찰 목록
+    </div>
+    <div class="nav-item" onclick="navigate('candidates')" data-view="candidates">
+      <span class="nav-icon">🤖</span> 자동수집 후보
+    </div>
+    <div class="nav-item" onclick="navigate('sources')" data-view="sources">
+      <span class="nav-icon">🔎</span> 국가별 바로가기
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="nav-item" onclick="navigate('settings')" data-view="settings" style="padding:8px 0;border:none">
+      <span class="nav-icon">⚙️</span> <span style="font-size:12px;color:#64748b">설정 / 연동</span>
+    </div>
+    <div style="display:flex;align-items:center;margin-top:6px">
+      <span class="sync-dot" id="syncDot"></span>
+      <span class="sync-label" id="syncLabel">로컬 저장</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="hamburger" onclick="openSidebar()">☰</button>
+      <h2 id="pageTitle">대시보드</h2>
+    </div>
+    <div class="topbar-right" id="topbarActions"></div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+</div>
+
+<!-- TENDER MODAL -->
+<div class="overlay" id="tenderModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="tenderModalTitle">입찰 추가</h3>
+      <button class="close-btn" onclick="closeModal('tenderModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tenderId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">국가 <span class="required">*</span></label>
+          <select class="form-control" id="tCountry">
+            <option>인도</option><option>베트남</option><option>태국</option>
+            <option>필리핀</option><option>인도네시아</option><option>방글라데시</option>
+            <option>파키스탄</option><option>중국</option><option>기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">계량기 유형</label>
+          <select class="form-control" id="tMeterType">
+            <option>전기</option><option>가스</option><option>수도</option>
+            <option>스마트미터/AMI</option><option>기타</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">입찰명 <span class="required">*</span></label>
+        <input class="form-control" id="tTitle" placeholder="예: Supply of Single Phase Smart Energy Meters">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">발주기관</label>
+          <input class="form-control" id="tOrg" placeholder="예: Maharashtra State Electricity Distribution Co.">
+        </div>
+        <div class="form-group">
+          <label class="form-label">입찰번호</label>
+          <input class="form-control" id="tTenderNo" placeholder="Tender No / Ref No">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">출처</label>
+          <select class="form-control" id="tSource">
+            <option value="">선택</option>
+            <option>GeM</option><option>CPPP</option><option>주정부 eProcurement</option>
+            <option>수기 검색</option><option>기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">규모/예가</label>
+          <input class="form-control" id="tEstValue" placeholder="예: ₹1.2 Cr / USD 500,000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">공고일</label>
+          <input class="form-control" id="tPublished" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">마감일</label>
+          <input class="form-control" id="tDeadline" type="date">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">출처 링크</label>
+        <input class="form-control" id="tUrl" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">상태</label>
+        <select class="form-control" id="tStatus">
+          <option value="new">신규</option>
+          <option value="reviewing">검토중</option>
+          <option value="preparing">제안서작성</option>
+          <option value="submitted">제출완료</option>
+          <option value="won">낙찰</option>
+          <option value="lost">유찰</option>
+          <option value="hold">보류</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">메모</label>
+        <textarea class="form-control" id="tNotes" placeholder="입찰 조건, 필요 인증, 파트너사 등"></textarea>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('tenderModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveTender()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="confirmModal">
+  <div class="modal" style="width:360px">
+    <div class="modal-hd"><h3>삭제 확인</h3><button class="close-btn" onclick="closeModal('confirmModal')">✕</button></div>
+    <div class="modal-body"><p id="confirmMsg" style="font-size:14px;line-height:1.6"></p></div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('confirmModal')">취소</button>
+      <button class="btn btn-danger" id="confirmBtn">삭제</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+'use strict';
+
+// ─── STATE ───────────────────────────────────────────────────
+const D_KEY = 'mb_data', S_KEY = 'mb_settings';
+let tenders = [], candidates = [];
+let cfg = {
+  supabaseUrl: 'https://fbctahxjzwwzuscjvaxg.supabase.co',
+  supabaseKey: 'sb_publishable_xNUx8DMdQvTgulv4MbOmyQ_8CW9HnQ-',
+};
+let sb = null, syncStatus = 'local', currentView = 'dashboard';
+
+// ─── STORAGE ─────────────────────────────────────────────────
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(D_KEY) || '{}');
+    tenders = d.tenders || [];
+    const s = JSON.parse(localStorage.getItem(S_KEY) || '{}');
+    cfg = {...cfg, ...s};
+  } catch(e) {}
+}
+function save() {
+  localStorage.setItem(D_KEY, JSON.stringify({tenders}));
+  localStorage.setItem(S_KEY, JSON.stringify(cfg));
+  if (sb) syncSupabase();
+}
+
+// ─── SUPABASE ────────────────────────────────────────────────
+async function initSupabase() {
+  if (!cfg.supabaseUrl || !cfg.supabaseKey) return;
+  try {
+    sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    await pullFromSupabase();
+    setSyncStatus('ok');
+  } catch(e) { setSyncStatus('err'); }
+}
+async function pullFromSupabase() {
+  if (!sb) return;
+  try {
+    setSyncStatus('ing');
+    const r = await sb.from('mb_tenders').select('*').order('created_at', {ascending:false});
+    if (!r.error) tenders = r.data;
+    localStorage.setItem(D_KEY, JSON.stringify({tenders}));
+    setSyncStatus('ok');
+    render();
+  } catch(e) { setSyncStatus('err'); }
+}
+async function syncSupabase() {
+  if (!sb) return;
+  setSyncStatus('ing');
+  try {
+    await sb.from('mb_tenders').upsert(tenders);
+    setSyncStatus('ok');
+  } catch(e) { setSyncStatus('err'); }
+}
+function setSyncStatus(s) {
+  syncStatus = s;
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  if (!dot) return;
+  dot.className = 'sync-dot' + (s==='ok'?' ok':s==='err'?' err':s==='ing'?' ing':'');
+  lbl.textContent = s==='ok'?'Supabase 동기화':s==='err'?'동기화 오류':s==='ing'?'동기화 중...':'로컬 저장';
+}
+
+// ─── UTILS ───────────────────────────────────────────────────
+const uid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);
+const fmtDate = d => d ? new Date(d+'T00:00').toLocaleDateString('ko-KR',{month:'short',day:'numeric'}) : '';
+const today = () => new Date().toISOString().slice(0,10);
+const daysUntil = d => d ? Math.ceil((new Date(d+'T00:00') - new Date(today()+'T00:00')) / 86400000) : null;
+
+const STATUS_MAP = {
+  new:['badge-blue','신규'], reviewing:['badge-yellow','검토중'], preparing:['badge-purple','제안서작성'],
+  submitted:['badge-teal','제출완료'], won:['badge-green','낙찰'], lost:['badge-gray','유찰'], hold:['badge-red','보류'],
+};
+function statusBadge(s) {
+  const [cls,lbl] = STATUS_MAP[s]||['badge-gray',s];
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+function countryBadge(c) { return c ? `<span class="badge badge-orange">${c}</span>` : ''; }
+function meterBadge(m) { return m ? `<span class="badge badge-gray">${m}</span>` : ''; }
+
+// ─── NAVIGATION ──────────────────────────────────────────────
+function navigate(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+    el.classList.toggle('active', el.dataset.view === view);
+  });
+  const titles = {dashboard:'대시보드',tenders:'입찰 목록',candidates:'자동수집 후보',sources:'국가별 바로가기',settings:'설정 / 연동'};
+  document.getElementById('pageTitle').textContent = titles[view]||view;
+  closeSidebar();
+  render();
+}
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+}
+
+// ─── RENDER ROUTER ───────────────────────────────────────────
+function render() {
+  const views = {dashboard:renderDashboard,tenders:renderTenders,candidates:renderCandidates,sources:renderSources,settings:renderSettings};
+  (views[currentView]||renderDashboard)();
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────
+function renderDashboard() {
+  const active = tenders.filter(t=>!['lost','hold'].includes(t.status));
+  const wonCount = tenders.filter(t=>t.status==='won').length;
+  const submittedCount = tenders.filter(t=>t.status==='submitted'||t.status==='won').length;
+  const upcoming = active.filter(t=>t.deadline && daysUntil(t.deadline)!==null && daysUntil(t.deadline)>=0 && daysUntil(t.deadline)<=14)
+    .sort((a,b)=>daysUntil(a.deadline)-daysUntil(b.deadline)).slice(0,6);
+  const recent = [...tenders].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).slice(0,5);
+
+  const byCountry = {};
+  tenders.forEach(t=>{ const c=t.country||'기타'; byCountry[c]=(byCountry[c]||0)+1; });
+  const maxCountry = Math.max(...Object.values(byCountry), 1);
+
+  const byMeter = {};
+  tenders.forEach(t=>{ const m=t.meter_type||'기타'; byMeter[m]=(byMeter[m]||0)+1; });
+  const maxMeter = Math.max(...Object.values(byMeter), 1);
+
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary" onclick="openTenderModal()">+ 입찰 추가</button>`;
+
+  document.getElementById('content').innerHTML = `
+  <div class="stats-grid">
+    <div class="stat c1"><div class="stat-label">전체 입찰</div><div class="stat-value">${tenders.length}</div><div class="stat-sub">누적 등록</div></div>
+    <div class="stat c3"><div class="stat-label">진행중</div><div class="stat-value">${active.length}</div><div class="stat-sub">유찰/보류 제외</div></div>
+    <div class="stat c4"><div class="stat-label">제출완료+</div><div class="stat-value">${submittedCount}</div><div class="stat-sub">제출완료·낙찰</div></div>
+    <div class="stat c2"><div class="stat-label">낙찰</div><div class="stat-value">${wonCount}</div><div class="stat-sub">누적 낙찰 건수</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-header"><span class="card-title">⏰ 마감임박 (14일 이내)</span><button class="btn btn-outline btn-sm" onclick="navigate('tenders')">전체보기</button></div>
+      ${upcoming.length ? upcoming.map(t=>{
+        const d = daysUntil(t.deadline);
+        return `<div class="dl-item">
+          <div class="dl-days ${d<=3?'urgent':''}"><div class="dl-n">${d}</div><div class="dl-u">일 남음</div></div>
+          <div class="dl-info">
+            <div class="dl-title">${t.title||'(제목 없음)'}</div>
+            <div class="dl-meta">${t.org||'발주기관 미입력'} · 마감 ${fmtDate(t.deadline)}</div>
+            <div class="dl-badges">${countryBadge(t.country)} ${meterBadge(t.meter_type)} ${statusBadge(t.status)}</div>
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty"><div class="empty-icon">📭</div><p>마감임박 입찰이 없습니다</p></div>'}
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">🕐 최근 등록</span><button class="btn btn-outline btn-sm" onclick="navigate('tenders')">전체보기</button></div>
+      ${recent.length ? recent.map(t=>`
+        <div class="dl-item" style="background:none;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div class="dl-info">
+            <div class="dl-title" style="font-size:13.5px">${t.title||'(제목 없음)'}</div>
+            <div class="dl-meta">${countryBadge(t.country)} ${meterBadge(t.meter_type)} ${statusBadge(t.status)}</div>
+          </div>
+        </div>`).join('') : '<div class="empty"><div class="empty-icon">📋</div><p>등록된 입찰이 없습니다</p></div>'}
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-header"><span class="card-title">🌏 국가별 분포</span></div>
+      ${Object.keys(byCountry).length ? Object.entries(byCountry).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`
+        <div class="bar-row">
+          <div class="bar-lbl">${c}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxCountry*100)||2}%"></div></div>
+          <div class="bar-val">${n}건</div>
+        </div>`).join('') : '<div class="empty"><p>데이터가 없습니다</p></div>'}
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">🔌 계량기 유형별 분포</span></div>
+      ${Object.keys(byMeter).length ? Object.entries(byMeter).sort((a,b)=>b[1]-a[1]).map(([m,n])=>`
+        <div class="bar-row">
+          <div class="bar-lbl">${m}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxMeter*100)||2}%;background:#7c3aed"></div></div>
+          <div class="bar-val">${n}건</div>
+        </div>`).join('') : '<div class="empty"><p>데이터가 없습니다</p></div>'}
+    </div>
+  </div>`;
+}
+
+// ─── TENDERS ─────────────────────────────────────────────────
+let tFilter = {status:'', country:'', meterType:''}, tSearch = '';
+function renderTenders() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary" onclick="openTenderModal()">+ 입찰 추가</button>`;
+  let filtered = [...tenders];
+  if (tFilter.status) filtered = filtered.filter(t=>t.status===tFilter.status);
+  if (tFilter.country) filtered = filtered.filter(t=>t.country===tFilter.country);
+  if (tFilter.meterType) filtered = filtered.filter(t=>t.meter_type===tFilter.meterType);
+  if (tSearch) filtered = filtered.filter(t=>(t.title||'').includes(tSearch)||(t.org||'').includes(tSearch)||(t.tender_no||'').includes(tSearch));
+  filtered.sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999'));
+
+  const countries = [...new Set(tenders.map(t=>t.country).filter(Boolean))];
+
+  document.getElementById('content').innerHTML = `
+  <div class="toolbar">
+    <div class="search-wrap">🔍 <input placeholder="제목, 발주기관, 입찰번호 검색" value="${tSearch}" oninput="tSearch=this.value;renderTenders()" id="tSearchInput"></div>
+    <select class="filter-select" onchange="tFilter.status=this.value;renderTenders()">
+      <option value="">전체 상태</option>
+      ${Object.entries(STATUS_MAP).map(([k,[,lbl]])=>`<option value="${k}" ${tFilter.status===k?'selected':''}>${lbl}</option>`).join('')}
+    </select>
+    <select class="filter-select" onchange="tFilter.country=this.value;renderTenders()">
+      <option value="">전체 국가</option>
+      ${countries.map(c=>`<option value="${c}" ${tFilter.country===c?'selected':''}>${c}</option>`).join('')}
+    </select>
+    <select class="filter-select" onchange="tFilter.meterType=this.value;renderTenders()">
+      <option value="">전체 유형</option>
+      <option ${tFilter.meterType==='전기'?'selected':''}>전기</option>
+      <option ${tFilter.meterType==='가스'?'selected':''}>가스</option>
+      <option ${tFilter.meterType==='수도'?'selected':''}>수도</option>
+      <option ${tFilter.meterType==='스마트미터/AMI'?'selected':''}>스마트미터/AMI</option>
+    </select>
+    <span style="font-size:13px;color:var(--muted)">${filtered.length}건</span>
+  </div>
+  <div class="card" style="padding:0">
+  <div class="tbl-wrap">
+  <table>
+    <tr><th>마감일</th><th>국가/유형</th><th>입찰명</th><th>발주기관</th><th>출처</th><th>상태</th><th>관리</th></tr>
+    ${filtered.length ? filtered.map(t=>{
+      const d = t.deadline ? daysUntil(t.deadline) : null;
+      return `<tr>
+        <td style="white-space:nowrap">${fmtDate(t.deadline)||'-'}${d!==null&&d>=0&&d<=14?` <span style="color:var(--danger);font-size:11px;font-weight:700">D-${d}</span>`:''}</td>
+        <td>${countryBadge(t.country)} ${meterBadge(t.meter_type)}</td>
+        <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.url?`<a href="${t.url}" target="_blank" style="color:var(--text);text-decoration:none">${t.title||'-'}</a>`:(t.title||'-')}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.org||'-'}</td>
+        <td>${t.source?`<span class="badge badge-gray">${t.source}</span>`:'-'}</td>
+        <td>
+          <select class="form-control" style="padding:4px 8px;font-size:12px;width:auto" onchange="quickStatus('${t.id}',this.value)">
+            ${Object.entries(STATUS_MAP).map(([k,[,lbl]])=>`<option value="${k}" ${t.status===k?'selected':''}>${lbl}</option>`).join('')}
+          </select>
+        </td>
+        <td><div class="actions-cell">
+          <button class="btn-ghost btn-sm" onclick="openTenderModal('${t.id}')">✏️</button>
+          <button class="btn-ghost btn-sm" onclick="confirmDelete('${t.id}','${(t.title||'입찰').replace(/'/g,'')}')">🗑️</button>
+        </div></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="7"><div class="empty"><div class="empty-icon">📋</div><p>입찰을 추가해보세요</p></div></td></tr>`}
+  </table></div></div>`;
+  setTimeout(()=>{const el=document.getElementById('tSearchInput');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}},0);
+}
+
+function quickStatus(id, status) {
+  const t = tenders.find(t=>t.id===id);
+  if (t) { t.status = status; save(); }
+}
+
+// ─── CANDIDATES (자동수집 후보, data/*.json 정적 파일) ───────
+async function renderCandidates() {
+  document.getElementById('topbarActions').innerHTML = '';
+  document.getElementById('content').innerHTML = `<div class="card"><div class="empty"><p>불러오는 중...</p></div></div>`;
+  try {
+    const res = await fetch('data/india_tenders.json', {cache:'no-store'});
+    const data = await res.json();
+    candidates = data.tenders || [];
+    const updatedAt = data.updated_at || '알 수 없음';
+    const existingUrls = new Set(tenders.map(t=>t.url).filter(Boolean));
+
+    document.getElementById('content').innerHTML = `
+    <div class="card" style="background:#fffbeb;border-color:#fde68a">
+      <div style="font-size:13px;line-height:1.6">
+        🤖 <b>인도 CPPP 자동수집 파일럿</b> — 최근 갱신: ${updatedAt}<br>
+        GeM·CPPP는 봇 차단(WAF)이 있어 자동수집이 매번 성공한다는 보장이 없습니다. 이 목록은 참고용이며,
+        실제로는 <b>국가별 바로가기</b> 탭에서 수동 검색 후 직접 등록하는 것이 더 안정적입니다.
+      </div>
+    </div>
+    <div class="card" style="padding:0">
+    <div class="tbl-wrap">
+    <table>
+      <tr><th>수집일</th><th>제목</th><th>기관/번호</th><th>마감일</th><th></th></tr>
+      ${candidates.length ? candidates.map(c=>`
+        <tr>
+          <td style="white-space:nowrap">${c.collected_at||'-'}</td>
+          <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="${c.url}" target="_blank" style="color:var(--text)">${c.title||'-'}</a></td>
+          <td>${c.org||'-'} ${c.tender_no?`<div style="font-size:11px;color:var(--muted)">${c.tender_no}</div>`:''}</td>
+          <td>${c.deadline||'-'}</td>
+          <td>${existingUrls.has(c.url) ? '<span class="badge badge-gray">등록됨</span>' : `<button class="btn btn-outline btn-sm" onclick='promoteCandidate(${JSON.stringify(c)})'>+ 입찰로 등록</button>`}</td>
+        </tr>`).join('') : `<tr><td colspan="5"><div class="empty"><div class="empty-icon">🤖</div><p>수집된 후보가 없습니다 (아직 미실행이거나 사이트 차단)</p></div></td></tr>`}
+    </table></div></div>`;
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div><p>data/india_tenders.json을 아직 불러올 수 없습니다 (자동수집 미실행)</p></div></div>`;
+  }
+}
+function promoteCandidate(c) {
+  openTenderModal(null, {
+    country: '인도', meter_type: '',
+    title: c.title, org: c.org, tender_no: c.tender_no,
+    source: 'CPPP', url: c.url, deadline: c.deadline, status: 'new',
+  });
+}
+
+// ─── SOURCES (국가별 바로가기) ─────────────────────────────────
+const SOURCES = [
+  { country: '인도 (중앙)', keyword: 'electric meter OR energy meter OR smart meter OR gas meter OR water meter tender',
+    links: [
+      { label: 'GeM (Government e-Marketplace)', url: 'https://bidplus.gem.gov.in/all-bids' },
+      { label: 'CPPP (Central Public Procurement Portal)', url: 'https://eprocure.gov.in/eprocure/app' },
+    ] },
+  { country: '인도 (주정부·DISCOM)', keyword: 'smart meter OR energy meter tender',
+    links: [
+      { label: '마하라슈트라 MahaTenders', url: 'https://mahatenders.gov.in/' },
+      { label: 'MSEDCL(마하라슈트라 배전공사) e-Tendering', url: 'https://etender.mahadiscom.in/eatApp/' },
+      { label: '마디아프라데시 MPTenders', url: 'https://mptenders.gov.in/' },
+      { label: '타밀나두 TNTenders', url: 'https://tntenders.gov.in/' },
+      { label: '우타르프라데시 eProcurement', url: 'https://etender.up.nic.in/' },
+      { label: '라자스탄 eProcurement', url: 'https://eproc.rajasthan.gov.in/' },
+      { label: '구자라트 nProcure', url: 'https://tender.nprocure.com/' },
+    ] },
+  { country: '인도 (가스 배급사)', keyword: 'gas meter OR smart gas meter tender',
+    links: [
+      { label: 'GAIL (국영 가스공사)', url: 'https://gailtenders.in/' },
+      { label: 'IGL (델리·NCR 도시가스)', url: 'https://tenders.iglonline.net/tenderList' },
+      { label: 'MGL (뭄바이 도시가스)', url: 'https://www.mahanagargas.com/MGL-corporate/contracts-and-procurements/tenders/active-tender' },
+    ] },
+  { country: '인도 (상수도)', keyword: 'water meter OR smart water meter tender',
+    links: [
+      { label: 'Delhi Jal Board (델리 상수도청)', url: 'https://delhijalboard.delhi.gov.in/tenders' },
+      { label: 'UP Jal Nigam (우타르프라데시 상수도청)', url: 'https://jn.upsdc.gov.in/en/tenders' },
+    ] },
+  { country: '베트남', keyword: 'electric meter OR water meter tender',
+    links: [ { label: 'VNEPS (전국 전자조달)', url: 'https://muasamcong.mpi.gov.vn/en/web/guest' } ] },
+  { country: '태국', keyword: 'electric meter OR water meter tender',
+    links: [ { label: 'e-GP Thailand', url: 'https://www.gprocurement.go.th/wps/portal/index_EGP' } ] },
+  { country: '필리핀', keyword: 'electric meter OR water meter tender',
+    links: [ { label: 'PhilGEPS', url: 'https://notices.philgeps.gov.ph/' } ] },
+  { country: '인도네시아', keyword: 'electric meter OR water meter tender',
+    links: [ { label: 'INAPROC', url: 'https://inaproc.id/en' } ] },
+  { country: '방글라데시', keyword: 'electric meter OR gas meter tender',
+    links: [ { label: 'e-GP Bangladesh (CPTU/BPPA)', url: 'https://www.eprocure.gov.bd/' } ] },
+  { country: '파키스탄', keyword: 'electric meter OR gas meter tender',
+    links: [ { label: 'PPRA', url: 'https://ppra.gov.pk/' } ] },
+  { country: '중국', keyword: '电表 OR 燃气表 OR 水表 招标',
+    links: [
+      { label: 'CCGP 중국정부조달망', url: 'http://www.ccgp.gov.cn/cggg/zygg/gkzb/' },
+      { label: 'China International Tendering (영문)', url: 'http://en.chinabidding.mofcom.gov.cn/' },
+    ] },
+];
+function renderSources() {
+  document.getElementById('topbarActions').innerHTML = '';
+  document.getElementById('content').innerHTML = `
+  <div class="card" style="background:#eff6ff;border-color:#bfdbfe">
+    <div style="font-size:13px;line-height:1.6">
+      💡 대부분의 정부 조달 포털은 내부 검색 URL 파라미터가 자주 바뀌거나 봇 차단이 있어, 여기서는
+      포털 홈페이지 바로가기와 <b>Google 사이트 검색</b> 링크를 함께 제공합니다. Google 검색이 보통 더 안정적입니다.
+    </div>
+  </div>
+  ${SOURCES.map(s=>`
+    <div class="source-card">
+      <div class="source-hd">
+        <span class="source-country">🌏 ${s.country}</span>
+        <span style="font-size:12px;color:var(--muted)">추천 키워드: ${s.keyword}</span>
+      </div>
+      <div class="source-links">
+        ${s.links.map(l=>`<a class="btn btn-outline btn-sm" href="${l.url}" target="_blank">${l.label} ↗</a>`).join('')}
+        <a class="btn btn-outline btn-sm" href="https://www.google.com/search?q=${encodeURIComponent(s.links.map(l=>'site:'+new URL(l.url).hostname).join(' OR ') + ' ' + s.keyword)}" target="_blank">🔍 Google 사이트 검색</a>
+      </div>
+    </div>`).join('')}
+  `;
+}
+
+// ─── SETTINGS ────────────────────────────────────────────────
+function renderSettings() {
+  document.getElementById('topbarActions').innerHTML = '';
+  document.getElementById('content').innerHTML = `
+  <div class="grid2">
+    <div>
+      <div class="card settings-section">
+        <div class="settings-title">☁️ Supabase 연동 (크로스 디바이스 동기화)</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px">설정하면 핸드폰/패드/PC 모두 동기화됩니다</div>
+        <div class="form-group"><label class="form-label">Supabase URL</label><input class="form-control" id="cfgSbUrl" value="${cfg.supabaseUrl}" placeholder="https://xxx.supabase.co"></div>
+        <div class="form-group"><label class="form-label">Supabase Anon Key</label><input class="form-control" id="cfgSbKey" value="${cfg.supabaseKey}" placeholder="eyJ..." type="password"></div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn btn-primary" onclick="saveSupabaseSettings()">연동 저장</button>
+          <span class="sync-label" id="settingsSyncLabel">${syncStatus==='ok'?'✅ 연결됨':syncStatus==='err'?'❌ 오류':'로컬 모드'}</span>
+        </div>
+        <div style="margin-top:16px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--muted)">Supabase에서 실행할 SQL (테이블 생성, 최초 1회):</div>
+          <div class="code-block">create table mb_tenders (
+  id uuid default gen_random_uuid() primary key,
+  country text not null,
+  meter_type text,
+  title text not null,
+  org text,
+  tender_no text,
+  source text,
+  url text,
+  published_date date,
+  deadline date,
+  est_value text,
+  status text default 'new',
+  notes text,
+  created_at timestamptz default now()
+);</div>
+          <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="copySQL()">📋 SQL 복사</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card settings-section">
+        <div class="settings-title">🤖 자동수집 안내</div>
+        <div style="font-size:13.5px;line-height:1.8;color:var(--text)">
+          <b>인도(GeM/CPPP) 자동수집은 파일럿 단계입니다.</b><br>
+          두 포털 모두 자동화 요청을 차단하는 봇 방어(WAF)가 확인되어, GitHub Actions에서도 매번
+          성공한다는 보장이 없습니다. <code>scripts/fetch-india-tenders.js</code>가 매일 시도하지만
+          실패 시 조용히 기존 데이터를 유지합니다 — Actions 로그에서 실제 동작 여부를 확인하세요.<br><br>
+          지금은 <b>국가별 바로가기</b> 탭에서 수동 검색 → 발견한 입찰을 이 화면에 직접 등록하는 방식이
+          가장 안정적입니다.
+        </div>
+      </div>
+      <div class="card settings-section">
+        <div class="settings-title">📲 모바일 설치 (홈 화면 추가)</div>
+        <div style="font-size:13.5px;line-height:1.8;color:var(--text)">
+          <b>iPhone/iPad:</b> Safari → 공유 버튼 → 홈 화면에 추가<br>
+          <b>Android:</b> Chrome 메뉴 → 홈 화면에 추가<br>
+          <b>PC:</b> 즐겨찾기에 저장 또는 북마크 바 등록
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+async function saveSupabaseSettings() {
+  cfg.supabaseUrl = document.getElementById('cfgSbUrl').value.trim();
+  cfg.supabaseKey = document.getElementById('cfgSbKey').value.trim();
+  save();
+  if (cfg.supabaseUrl && cfg.supabaseKey) {
+    await initSupabase();
+    const lbl = document.getElementById('settingsSyncLabel');
+    if (lbl) lbl.textContent = syncStatus==='ok'?'✅ 연결됨':syncStatus==='err'?'❌ URL/Key 확인 필요':'로컬 모드';
+  }
+}
+function copySQL() {
+  const sql = `create table mb_tenders (id uuid default gen_random_uuid() primary key, country text not null, meter_type text, title text not null, org text, tender_no text, source text, url text, published_date date, deadline date, est_value text, status text default 'new', notes text, created_at timestamptz default now());`;
+  navigator.clipboard.writeText(sql).then(()=>alert('SQL이 복사됐습니다!'));
+}
+
+// ─── TENDER CRUD ─────────────────────────────────────────────
+function openTenderModal(id, prefill) {
+  const t = id ? tenders.find(t=>t.id===id) : (prefill || null);
+  document.getElementById('tenderModalTitle').textContent = id ? '입찰 수정' : '입찰 추가';
+  document.getElementById('tenderId').value = id||'';
+  document.getElementById('tCountry').value = t?.country||'인도';
+  document.getElementById('tMeterType').value = t?.meter_type||'전기';
+  document.getElementById('tTitle').value = t?.title||'';
+  document.getElementById('tOrg').value = t?.org||'';
+  document.getElementById('tTenderNo').value = t?.tender_no||'';
+  document.getElementById('tSource').value = t?.source||'';
+  document.getElementById('tEstValue').value = t?.est_value||'';
+  document.getElementById('tPublished').value = t?.published_date||'';
+  document.getElementById('tDeadline').value = t?.deadline||'';
+  document.getElementById('tUrl').value = t?.url||'';
+  document.getElementById('tStatus').value = t?.status||'new';
+  document.getElementById('tNotes').value = t?.notes||'';
+  openModal('tenderModal');
+}
+function saveTender() {
+  const title = document.getElementById('tTitle').value.trim();
+  if (!title) { alert('입찰명을 입력해주세요'); return; }
+  const id = document.getElementById('tenderId').value || uid();
+  const existing = tenders.find(t=>t.id===id);
+  const data = {
+    id, country:$v('tCountry'), meter_type:$v('tMeterType'), title,
+    org:$v('tOrg'), tender_no:$v('tTenderNo'), source:$v('tSource'),
+    est_value:$v('tEstValue'), published_date:$v('tPublished')||null, deadline:$v('tDeadline')||null,
+    url:$v('tUrl'), status:$v('tStatus')||'new', notes:$v('tNotes'),
+    created_at: existing?.created_at || new Date().toISOString()
+  };
+  if (existing) Object.assign(existing, data);
+  else tenders.push(data);
+  save(); closeModal('tenderModal'); render();
+}
+function deleteTender(id) { tenders = tenders.filter(t=>t.id!==id); save(); render(); }
+function confirmDelete(id, title) {
+  document.getElementById('confirmMsg').textContent = `"${title}"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`;
+  document.getElementById('confirmBtn').onclick = () => { deleteTender(id); closeModal('confirmModal'); };
+  openModal('confirmModal');
+}
+
+// ─── MODAL HELPERS ───────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.overlay').forEach(el => {
+  el.addEventListener('click', e => { if(e.target===el) el.classList.remove('show'); });
+});
+const $v = id => document.getElementById(id)?.value || '';
+
+// ─── INIT ────────────────────────────────────────────────────
+load();
+initSupabase().then(render);
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') document.querySelectorAll('.overlay.show').forEach(el=>el.classList.remove('show'));
+});
+</script>
+</body>
+</html>
