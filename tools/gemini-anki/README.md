@@ -71,7 +71,8 @@ python tools/gemini-anki/test_connection.py
 
 1. `tools/gemini-anki/study_log.example.md`를 같은 폴더에 `study_log.md`로 복사한다
    (`study_log.md`는 `.gitignore`에 등록돼 있어 커밋되지 않는다 — 개인 학습 내용이라 저장소에 안 올라가는 게 맞음).
-2. 공부하다가 Gemini 답변 중 카드로 남기고 싶은 부분이 있으면, 아래 형식으로 그날 날짜 밑에 붙여넣는다.
+2. 공부하다가 남기고 싶은 내용이 있으면, 그날 날짜 헤더 밑에 그냥 붙여넣는다. **형식 신경 안 써도 된다** —
+   아래처럼 짧게 정리된 글이든,
 
    ```
    ## 2026-07-22
@@ -79,22 +80,41 @@ python tools/gemini-anki/test_connection.py
    **incoterms** - 국제 상거래에서 매도인과 매수인의 비용/위험 분담을 정한 무역 조건.
    ```
 
-   Gemini에게 "핵심 표현은 `**표현** - 뜻` 형식으로 정리해줘"라고 요청해두면 바로 이 형식으로 답을 준다.
-3. 카드로 만들고 싶을 때 (Anki를 켜둔 상태에서):
+   평소 쓰던 대로 긴 글이든 상관없다 (`--ai` 옵션을 쓰면 AI가 알아서 핵심만 뽑아낸다):
 
    ```
-   pip install -r tools/gemini-anki/requirements.txt
+   ## 2026-07-23
 
-   # 먼저 뭐가 추출되는지만 확인 (Anki에 추가 안 함)
-   python tools/gemini-anki/study_log_to_anki.py tools/gemini-anki/study_log.md --dry-run
-
-   # 확인됐으면 실제로 Anki에 추가
-   python tools/gemini-anki/study_log_to_anki.py tools/gemini-anki/study_log.md --deck "Gemini 학습"
+   오늘 Gemini랑 인코텀즈에 대해 길게 얘기함. 매도인/매수인 사이에 물류비랑
+   위험 부담을 언제 누가 지는지 정하는 국제 규칙이라고 함. FOB는 선적할 때까지만
+   매도인 책임이고, CIF는 목적항 도착까지 매도인이 운임/보험까지 부담...(중략)
    ```
+
+3. **AI로 자동 추출하려면** (`--ai`, 형식 안 갖춘 긴 글도 가능) 무료 Gemini API 키가 필요하다.
+   - [aistudio.google.com](https://aistudio.google.com) 접속 → 로그인 → **Get API key** 클릭 → 키 복사
+   - Windows에서 한 번만 등록: 시작 메뉴 → "환경 변수 편집" 검색 → 사용자 변수에 새로 만들기
+     → 변수 이름 `GEMINI_API_KEY`, 값에 복사한 키 붙여넣기 → 확인
+4. 카드로 만들고 싶을 때 (Anki를 켜둔 상태에서), 아래 중 하나:
+
+   - **더블클릭으로 실행 (가장 간편)**: `tools/gemini-anki/run_study_log.bat` 더블클릭
+     (내부적으로 `study_log.md`를 `--ai`로 처리해 카드로 추가한다)
+   - **직접 명령어로 실행**:
+
+     ```
+     pip install -r tools/gemini-anki/requirements.txt
+
+     # 먼저 뭐가 추출되는지만 확인 (Anki에 추가 안 함)
+     python tools/gemini-anki/study_log_to_anki.py tools/gemini-anki/study_log.md --ai --dry-run
+
+     # 확인됐으면 실제로 Anki에 추가
+     python tools/gemini-anki/study_log_to_anki.py tools/gemini-anki/study_log.md --ai --deck "Gemini 학습"
+     ```
+
+     (`--ai`를 빼면 예전처럼 `**표현** - 설명` 형식만 정규식으로 인식하는 방식으로 동작한다.)
 
    같은 로그를 여러 번 돌려도 이미 추가된 카드는 중복으로 안 들어가니, 로그에 새로 추가한
    내용만 있어도 매번 전체 파일을 대상으로 돌리면 된다.
-4. PC Anki에서 동기화(Sync) 버튼 누르면 폰까지 반영된다.
+5. PC Anki에서 동기화(Sync) 버튼 누르면 폰까지 반영된다.
 
 ## 6. 방식 B: Google Takeout에서 Gemini Apps 대화 기록 전체 내보내기
 
@@ -184,3 +204,8 @@ python tools/gemini-anki/find_forgotten_cards.py --deck "Gemini 학습" --min-la
   `extract_expressions.py`의 정규식이 매칭할 대상이 없어 후보가 0개로 나올 수 있다 —
   이 경우 Gemini에게 "핵심 표현은 `**표현** - 뜻` 형식으로 답해줘"라고 요청해두면
   다음 Takeout 내보내기부터 잘 추출된다.
+- `--ai` 옵션은 `study_log.md`에 있는 항목 하나당 Gemini API를 한 번씩 호출한다.
+  개인이 하루 몇 개씩 쓰는 정도면 무료 사용량 한도 안에서 충분하지만, 로그가
+  아주 길고 많아지면 API 사용량/요금을 가끔 확인하는 게 좋다.
+- `GEMINI_API_KEY`는 절대 `study_log.md`나 코드에 직접 적어 커밋하지 말고,
+  환경변수로만 등록해서 쓴다.

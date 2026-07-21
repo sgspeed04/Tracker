@@ -3,9 +3,14 @@
 
 parse_study_log.py + extract_expressions.py + push_to_anki.py를 한 명령으로 묶은 것.
 같은 로그를 여러 번 돌려도 push_to_anki.py가 중복 카드는 건너뛰므로 안전하다.
+
+--ai 옵션을 주면 정규식 대신 Gemini API로 추출한다 — "**표현** - 설명" 형식으로
+미리 정리하지 않은 긴 글을 그대로 넣어도 AI가 알아서 핵심 표현을 뽑아준다.
+이 경우 GEMINI_API_KEY 환경변수(또는 --api-key)가 필요하다.
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -21,6 +26,14 @@ def main() -> None:
     parser.add_argument(
         "--dry-run", action="store_true", help="Anki에 추가하지 않고 추출된 후보만 보여준다"
     )
+    parser.add_argument(
+        "--ai",
+        action="store_true",
+        help="정규식 대신 Gemini API로 추출 (형식 안 갖춘 긴 글도 가능, GEMINI_API_KEY 필요)",
+    )
+    parser.add_argument(
+        "--api-key", default=None, help="Gemini API 키 (기본: GEMINI_API_KEY 환경변수)"
+    )
     args = parser.parse_args()
 
     if not args.log_file.exists():
@@ -28,10 +41,30 @@ def main() -> None:
         sys.exit(1)
 
     activities = parse_log(args.log_file.read_text(encoding="utf-8"))
-    candidates = build_candidates(activities)
+
+    if args.ai:
+        from ai_extract import build_candidates_ai
+
+        api_key = args.api_key or os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            print(
+                "GEMINI_API_KEY 환경변수가 없습니다. aistudio.google.com에서 무료로 발급받아 설정하세요.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        try:
+            candidates = build_candidates_ai(activities, api_key)
+        except Exception as exc:
+            print(f"Gemini API 호출 실패: {exc}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        candidates = build_candidates(activities)
 
     if not candidates:
-        print("추출된 표현 후보가 없습니다. 로그가 '**표현** - 설명' 형식인지 확인하세요.")
+        if args.ai:
+            print("추출된 표현 후보가 없습니다.")
+        else:
+            print("추출된 표현 후보가 없습니다. 로그가 '**표현** - 설명' 형식인지 확인하세요 (--ai 옵션을 쓰면 형식 없이도 됩니다).")
         return
 
     print(f"{len(candidates)}개 후보 발견:")
