@@ -17,8 +17,13 @@ MONTH_ABBR = {
 
 
 def parse_timestamp_date(timestamp: str) -> date | None:
-    """Takeout 타임스탬프에서 날짜만 추출한다. 영문("Jul 20, 2026, ...")과
-    한글("2026. 7. 20. 오후 ...") 표기를 모두 시도한다."""
+    """타임스탬프에서 날짜만 추출한다. Takeout의 영문("Jul 20, 2026, ...")/
+    한글("2026. 7. 20. 오후 ...") 표기와 ISO 형식("2026-07-20", study_log.md
+    헤더용) 표기를 모두 시도한다."""
+    match = re.match(r"^(\d{4})-(\d{2})-(\d{2})$", timestamp.strip())
+    if match:
+        return date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+
     match = re.search(r"([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})", timestamp)
     if match and match.group(1) in MONTH_ABBR:
         return date(int(match.group(3)), MONTH_ABBR[match.group(1)], int(match.group(2)))
