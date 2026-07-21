@@ -73,6 +73,23 @@ python tools/gemini-anki/parse_takeout.py "Takeout/Gemini Apps/My Activity.html"
 python tools/gemini-anki/extract_expressions.py activities.json -o candidates.json
 ```
 
+Takeout은 대화를 골라서 내보낼 수 없고 Gemini Apps 활동 전체가 한 번에 나온다.
+특정 기간이나 주제의 대화만 쓰고 싶다면 `parse_takeout.py`에 필터 옵션을 쓴다.
+
+```
+# 날짜 범위로 필터 (YYYY-MM-DD)
+python tools/gemini-anki/parse_takeout.py "Takeout/Gemini Apps/My Activity.html" \
+  --start-date 2026-07-01 --end-date 2026-07-31 -o activities.json
+
+# 제목/본문에 특정 키워드가 있는 활동만 (대소문자 무시)
+python tools/gemini-anki/parse_takeout.py "Takeout/Gemini Apps/My Activity.html" \
+  --keyword "무역" -o activities.json
+
+# 두 조건 동시 적용도 가능
+python tools/gemini-anki/parse_takeout.py "Takeout/Gemini Apps/My Activity.html" \
+  --start-date 2026-07-01 --keyword ERP -o activities.json
+```
+
 `extract_expressions.py`는 Gemini 응답에서 다음 두 패턴을 찾아 후보로 뽑는다.
 
 - `**표현** - 설명` (굵게 강조 + 대시 설명)
