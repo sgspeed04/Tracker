@@ -609,10 +609,20 @@ function promoteCandidate(c) {
 
 // ─── SOURCES (국가별 바로가기) ─────────────────────────────────
 const SOURCES = [
-  { country: '인도', keyword: 'electric meter OR energy meter OR smart meter OR gas meter OR water meter tender',
+  { country: '인도 (중앙)', keyword: 'electric meter OR energy meter OR smart meter OR gas meter OR water meter tender',
     links: [
       { label: 'GeM (Government e-Marketplace)', url: 'https://bidplus.gem.gov.in/all-bids' },
       { label: 'CPPP (Central Public Procurement Portal)', url: 'https://eprocure.gov.in/eprocure/app' },
+    ] },
+  { country: '인도 (주정부·DISCOM)', keyword: 'smart meter OR energy meter tender',
+    links: [
+      { label: '마하라슈트라 MahaTenders', url: 'https://mahatenders.gov.in/' },
+      { label: 'MSEDCL(마하라슈트라 배전공사) e-Tendering', url: 'https://etender.mahadiscom.in/eatApp/' },
+      { label: '마디아프라데시 MPTenders', url: 'https://mptenders.gov.in/' },
+      { label: '타밀나두 TNTenders', url: 'https://tntenders.gov.in/' },
+      { label: '우타르프라데시 eProcurement', url: 'https://etender.up.nic.in/' },
+      { label: '라자스탄 eProcurement', url: 'https://eproc.rajasthan.gov.in/' },
+      { label: '구자라트 nProcure', url: 'https://tender.nprocure.com/' },
     ] },
   { country: '베트남', keyword: 'electric meter OR water meter tender',
     links: [ { label: 'VNEPS (전국 전자조달)', url: 'https://muasamcong.mpi.gov.vn/en/web/guest' } ] },

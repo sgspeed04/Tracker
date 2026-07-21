@@ -52,7 +52,7 @@
 - 해외 계량기(전기/가스/수도/스마트미터) 입찰(tender) 리드 관리 — 국가/계량기유형/발주기관/입찰번호/출처/공고일/마감일/규모/상태/메모
 - 상태 흐름: 신규 → 검토중 → 제안서작성 → 제출완료 → 낙찰/유찰 (보류 분기)
 - 대시보드: 마감임박(14일 이내) 알림, 국가별·계량기유형별 분포, 최근 등록 리드
-- **국가별 바로가기**: 인도(GeM/CPPP)·베트남(VNEPS)·태국(e-GP)·필리핀(PhilGEPS)·인도네시아(INAPROC)·방글라데시(e-GP)·파키스탄(PPRA)·중국(CCGP) 조달포털 홈페이지 링크 + Google 사이트 검색 바로가기(추천 키워드 포함) — 수동 검색 후 발견한 입찰을 바로 등록하는 방식이 현재 가장 안정적
+- **국가별 바로가기**: 인도 중앙(GeM/CPPP)·인도 주정부/DISCOM(마하라슈트라 MahaTenders·MSEDCL·마디아프라데시·타밀나두·우타르프라데시·라자스탄·구자라트 nProcure)·베트남(VNEPS)·태국(e-GP)·필리핀(PhilGEPS)·인도네시아(INAPROC)·방글라데시(e-GP)·파키스탄(PPRA)·중국(CCGP) 조달포털 홈페이지 링크 + Google 사이트 검색 바로가기(추천 키워드 포함) — 전력/수도 인프라는 주정부 배전회사(DISCOM) 단위로 운영되어 중앙포털(CPPP/GeM)만으론 놓치는 입찰이 많아 주요 주(州) 포털을 추가함. 수동 검색 후 발견한 입찰을 바로 등록하는 방식이 현재 가장 안정적
 - **자동수집 후보 탭(파일럿, 미검증)**: `scripts/fetch-india-tenders.js`가 `.github/workflows/update-india-tenders.yml`을 통해 매일 05:00 KST 자동 실행, CPPP·GeM "최신 공고" 목록에서 제목에 계량기 관련 키워드(meter/AMI/AMR)가 있는 것만 걸러 `data/india_tenders.json`에 저장
   - ⚠️ 개발 중 GeM(bidplus.gem.gov.in)·CPPP(eprocure.gov.in) 모두 이 세션의 프록시와 WebFetch 양쪽에서 HTTP 403을 반환 — 홈페이지 접근조차 막혀 실제 HTML 구조를 검증하지 못한 채 선택자를 방어적으로 작성했다. 데이터센터 IP 대역 차단(WAF)으로 추정되며 GitHub Actions 러너에서도 막힐 가능성이 있음 — PropertyLeads의 VWorld/Azure IP 차단과 동일 패턴. 실제 동작 여부는 Actions 탭의 실행 로그에서 확인할 것(0건이면 선택자 진단 로그가 남음)
   - 실패해도 기존 데이터를 덮어쓰지 않고 `updated_at`만 갱신하도록 설계됨 — 자동수집이 막혀 있어도 수동 등록 워크플로에는 영향 없음
