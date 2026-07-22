@@ -10,11 +10,10 @@ parse_study_log.py + extract_expressions.py + push_to_anki.py를 한 명령으�
 """
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
-from extract_expressions import build_candidates
+from extraction import get_candidates
 from parse_study_log import parse_log
 from push_to_anki import build_note, invoke
 
@@ -41,24 +40,7 @@ def main() -> None:
         sys.exit(1)
 
     activities = parse_log(args.log_file.read_text(encoding="utf-8"))
-
-    if args.ai:
-        from ai_extract import build_candidates_ai
-
-        api_key = args.api_key or os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            print(
-                "GEMINI_API_KEY 환경변수가 없습니다. aistudio.google.com에서 무료로 발급받아 설정하세요.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        try:
-            candidates = build_candidates_ai(activities, api_key)
-        except Exception as exc:
-            print(f"Gemini API 호출 실패: {exc}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        candidates = build_candidates(activities)
+    candidates = get_candidates(activities, args.ai, args.api_key)
 
     if not candidates:
         if args.ai:

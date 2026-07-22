@@ -27,8 +27,12 @@ PC: Google Takeout으로 Gemini 대화 기록 내보내기
 남기고 싶은 답변만 그때그때 골라 쌓는 방식이라 노이즈가 적다. 방식 B는 손은 덜
 가지만 관련 없는 대화까지 다 섞여 나온다.
 
-카드 자동 생성은 PC에서만 가능 (AnkiConnect가 로컬 서버 방식이라 폰에서는 못 돌림).
-복습 자체는 폰에서 완전히 가능.
+카드 자동 생성(AnkiConnect 방식)은 PC에서만 가능 — AnkiConnect가 로컬 서버 방식이라
+AnkiDroid(안드로이드)에서는 못 돌림. 다만 `study_log_to_file.py`를 쓰면 AnkiConnect 없이
+가져오기용 텍스트 파일만 만들 수 있어서, Python이 도는 태블릿(Termux 설치한 갤럭시탭/
+레드미패드 등)에서도 카드 후보를 만든 뒤 AnkiDroid의 가져오기 기능으로 넣을 수 있다
+(자세한 건 "10. 태블릿/PC용 Anki 없이 카드 파일만 만들기" 참고). 복습 자체는 어떤
+기기에서든 AnkiWeb 동기화로 완전히 가능.
 
 ---
 
@@ -190,6 +194,28 @@ python tools/gemini-anki/find_forgotten_cards.py --deck "Gemini 학습" --min-la
   `study_log_to_anki.py`를 돌리면, 기존 카드는 중복으로 건너뛰고 새로 보강된
   설명만 자연스럽게 새 카드로 쌓인다. (Anki는 같은 Front가 있으면 새로 안 만드므로,
   더 나은 설명으로 바꾸고 싶으면 기존 카드를 Anki 브라우저에서 직접 수정하는 게 낫다.)
+
+## 10. 태블릿/PC용 Anki 없이 카드 파일만 만들기
+
+AnkiConnect는 PC용 Anki 프로그램에서만 지원돼서, 갤럭시탭/레드미패드 같은 안드로이드
+태블릿에서는 `push_to_anki.py`나 `study_log_to_anki.py`를 그대로 못 쓴다. 대신
+`study_log_to_file.py`는 AnkiConnect 없이, 가져오기용 텍스트 파일만 만들어준다.
+
+Termux(안드로이드용 터미널 앱)에 Python을 설치했다면 태블릿에서도 그대로 쓸 수 있다.
+
+```
+python tools/gemini-anki/study_log_to_file.py study_log.md --ai -o anki_import.txt
+```
+
+만들어진 `anki_import.txt`는:
+
+- **Anki 데스크톱**: 파일 > 가져오기(Import) → 이 파일 선택 → 필드 구분자 "탭", 노트
+  유형 "기본(Basic)" 확인 후 가져오기
+- **AnkiDroid**: 오른쪽 위 메뉴 > 가져오기 → 이 파일 선택
+
+로 바로 카드가 들어간다. `push_to_anki.py`와 달리 중복 검사를 안 해주므로, 같은 로그를
+여러 번 돌릴 땐 새로 추가된 부분만 별도 파일로 만들거나, 가져오기 전에 파일 내용을
+한 번 확인하는 게 좋다.
 
 ---
 
