@@ -120,6 +120,26 @@ python tools/gemini-anki/test_connection.py
    내용만 있어도 매번 전체 파일을 대상으로 돌리면 된다.
 5. PC Anki에서 동기화(Sync) 버튼 누르면 폰까지 반영된다.
 
+### 주제별로 나눠 쓰기 (중국어 / 영어 / BI / 파이썬 등)
+
+`study_log.md` 하나에 다 몰아 써도 되지만, 주제별로 Anki 덱을 따로 두고 싶으면
+아래 4개 파일을 각각 만들면 된다. 각 `study_log_*.example.md`를 같은 이름의
+`study_log_*.md`로 복사해서 쓴다 (예: `study_log_chinese.example.md` →
+`study_log_chinese.md`).
+
+| 로그 파일 | Anki 덱 |
+|---|---|
+| `study_log.md` | Gemini 학습 |
+| `study_log_chinese.md` | 중국어 |
+| `study_log_english.md` | 영어 |
+| `study_log_bi.md` | BI |
+| `study_log_python.md` | 파이썬 |
+
+`run_study_log.bat`을 더블클릭하면 이 중 **실제로 존재하는 파일들만** 찾아서
+각자의 덱으로 카드를 만들어준다 — 4개를 다 만들 필요 없이, 쓰는 것만 만들어도
+된다. 다른 주제를 추가하고 싶으면 `run_study_log.bat`을 열어서
+`call :process "파일명" "덱이름"` 줄을 하나 더 추가하면 된다.
+
 ## 6. 방식 B: Google Takeout에서 Gemini Apps 대화 기록 전체 내보내기
 
 1. [takeout.google.com](https://takeout.google.com) 접속
