@@ -40,6 +40,35 @@ def build_note(candidate: dict, deck: str) -> dict:
     }
 
 
+def bump_existing_cards(fronts: list[str], deck: str) -> int:
+    """이미 있는 카드를 또 올렸다는 건 다시 볼 가치가 있다는 뜻이므로,
+    새로 추가하는 대신 다음 복습일을 오늘로 당겨 복습 빈도를 높인다."""
+    bumped = 0
+    for front in fronts:
+        card_ids = invoke("findCards", query=f'deck:"{deck}" "Front:{front}"')
+        if card_ids:
+            invoke("setDueDate", cards=card_ids, days="0")
+            bumped += len(card_ids)
+    return bumped
+
+
+def push_notes(candidates: list[dict], deck: str) -> dict:
+    invoke("createDeck", deck=deck)
+
+    notes = [build_note(c, deck) for c in candidates]
+    can_add = invoke("canAddNotes", notes=notes)
+
+    to_add = [note for note, ok in zip(notes, can_add) if ok]
+    duplicate_fronts = [note["fields"]["Front"] for note, ok in zip(notes, can_add) if not ok]
+
+    added_ids = invoke("addNotes", notes=to_add) if to_add else []
+    added = sum(1 for note_id in added_ids if note_id is not None)
+
+    bumped = bump_existing_cards(duplicate_fronts, deck) if duplicate_fronts else 0
+
+    return {"added": added, "skipped": len(duplicate_fronts), "bumped": bumped}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("candidates_json", type=Path, help="extract_expressions.py 출력 JSON")
@@ -64,22 +93,15 @@ def main() -> None:
         return
 
     try:
-        invoke("createDeck", deck=args.deck)
+        result = push_notes(candidates, args.deck)
     except Exception as exc:
         print(f"AnkiConnect에 연결할 수 없습니다: {exc}", file=sys.stderr)
         print("PC에서 Anki를 켜고 http://localhost:8765 접속이 되는지 먼저 확인하세요 (test_connection.py 참고).", file=sys.stderr)
         sys.exit(1)
 
-    notes = [build_note(c, args.deck) for c in candidates]
-    can_add = invoke("canAddNotes", notes=notes)
-
-    to_add = [note for note, ok in zip(notes, can_add) if ok]
-    skipped = len(notes) - len(to_add)
-
-    added_ids = invoke("addNotes", notes=to_add) if to_add else []
-    added = sum(1 for i in added_ids if i is not None)
-
-    print(f"추가됨: {added}개, 중복으로 건너뜀: {skipped}개, 덱: {args.deck}")
+    print(
+        f"추가됨: {result['added']}개, 이미 있어서 복습일 당김: {result['bumped']}개, 덱: {args.deck}"
+    )
 
 
 if __name__ == "__main__":

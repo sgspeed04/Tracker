@@ -197,7 +197,9 @@ python tools/gemini-anki/push_to_anki.py candidates.json --deck "Gemini 학습"
 
 - Anki가 켜져 있어야 하고, `test_connection.py`가 성공해야 한다.
 - 덱이 없으면 자동 생성한다.
-- 이미 같은 앞면(Front)이 있는 카드는 중복 추가하지 않는다 (덱 기준).
+- 이미 같은 앞면(Front)이 있는 카드는 새로 추가하지 않는 대신, 다음 복습일을
+  오늘로 당긴다 — 같은 표현을 또 올렸다는 건 다시 볼 가치가 있다는 뜻으로 보고
+  복습 빈도를 높이는 것.
 - 카드 추가 후 PC Anki에서 동기화(Sync) 버튼을 눌러야 AnkiWeb/폰에 반영된다.
 
 ## 9. 자주 까먹는 카드 다시 물어보기

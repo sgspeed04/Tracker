@@ -14,7 +14,7 @@ from pathlib import Path
 
 from extraction import get_candidates
 from parse_study_log import parse_log
-from push_to_anki import build_note, invoke
+from push_to_anki import push_notes
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -40,20 +40,13 @@ def process(log_file: Path, deck: str) -> None:
         print(f"  - {candidate['expression']}: {candidate['meaning']}")
 
     try:
-        invoke("createDeck", deck=deck)
+        result = push_notes(candidates, deck)
     except Exception as exc:
         print(f"AnkiConnect에 연결할 수 없습니다: {exc}")
         print("PC에서 Anki를 켜고 있는지 확인하세요.")
         return
 
-    notes = [build_note(candidate, deck) for candidate in candidates]
-    can_add = invoke("canAddNotes", notes=notes)
-    to_add = [note for note, ok in zip(notes, can_add) if ok]
-    skipped = len(notes) - len(to_add)
-    added_ids = invoke("addNotes", notes=to_add) if to_add else []
-    added = sum(1 for note_id in added_ids if note_id is not None)
-
-    print(f"추가됨: {added}개, 중복으로 건너뜀: {skipped}개")
+    print(f"추가됨: {result['added']}개, 이미 있어서 복습일 당김: {result['bumped']}개")
 
 
 def main() -> None:
