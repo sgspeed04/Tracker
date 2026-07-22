@@ -1,5 +1,7 @@
 @echo off
 setlocal
+chcp 65001 >nul
+set PYTHONUTF8=1
 
 set SCRIPT_DIR=%~dp0
 set LOG_FILE=%SCRIPT_DIR%study_log.md

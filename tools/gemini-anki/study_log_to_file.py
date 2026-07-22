@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """study_log.md → Anki로 가져오기(Import) 가능한 텍스트 파일로 변환한다.
 
 push_to_anki.py와 달리 AnkiConnect(로컬 PC의 Anki 실행 필요)를 쓰지 않는다.
@@ -38,6 +39,9 @@ def main() -> None:
     parser.add_argument(
         "--api-key", default=None, help="Gemini API 키 (기본: GEMINI_API_KEY 환경변수)"
     )
+    parser.add_argument(
+        "--model", default=None, help="Gemini 모델 이름 (기본: ai_extract.DEFAULT_MODEL)"
+    )
     args = parser.parse_args()
 
     if not args.log_file.exists():
@@ -45,7 +49,7 @@ def main() -> None:
         sys.exit(1)
 
     activities = parse_log(args.log_file.read_text(encoding="utf-8"))
-    candidates = get_candidates(activities, args.ai, args.api_key)
+    candidates = get_candidates(activities, args.ai, args.api_key, args.model)
 
     if not candidates:
         print("추출된 표현 후보가 없습니다.")

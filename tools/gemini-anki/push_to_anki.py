@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """extract_expressions.py의 candidates.json을 AnkiConnect로 Anki에 카드로 추가한다.
 
 사전 조건: PC에서 Anki가 실행 중이고, AnkiConnect 애드온이 설치되어 있어야 한다.

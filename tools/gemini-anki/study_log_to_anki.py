@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """study_log.md → 카드 후보 추출 → Anki 추가까지 한 번에 실행하는 편의 스크립트.
 
 parse_study_log.py + extract_expressions.py + push_to_anki.py를 한 명령으로 묶은 것.
@@ -33,6 +34,9 @@ def main() -> None:
     parser.add_argument(
         "--api-key", default=None, help="Gemini API 키 (기본: GEMINI_API_KEY 환경변수)"
     )
+    parser.add_argument(
+        "--model", default=None, help="Gemini 모델 이름 (기본: ai_extract.DEFAULT_MODEL)"
+    )
     args = parser.parse_args()
 
     if not args.log_file.exists():
@@ -40,7 +44,7 @@ def main() -> None:
         sys.exit(1)
 
     activities = parse_log(args.log_file.read_text(encoding="utf-8"))
-    candidates = get_candidates(activities, args.ai, args.api_key)
+    candidates = get_candidates(activities, args.ai, args.api_key, args.model)
 
     if not candidates:
         if args.ai:

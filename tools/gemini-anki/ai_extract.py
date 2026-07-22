@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """Gemini API로 자유 형식 텍스트에서 핵심 표현/뜻 후보를 추출한다.
 
 extract_expressions.py의 정규식 방식과 달리, 미리 "**표현** - 설명" 형식으로
@@ -11,7 +12,7 @@ import re
 
 import requests
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-flash-latest"
 API_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 PROMPT = """다음은 학습자가 공부하며 남긴 메모입니다. 이 안에서 나중에 다시 복습하면

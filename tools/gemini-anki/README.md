@@ -235,3 +235,14 @@ python tools/gemini-anki/study_log_to_file.py study_log.md --ai -o anki_import.t
   아주 길고 많아지면 API 사용량/요금을 가끔 확인하는 게 좋다.
 - `GEMINI_API_KEY`는 절대 `study_log.md`나 코드에 직접 적어 커밋하지 말고,
   환경변수로만 등록해서 쓴다.
+- Gemini 모델 이름은 Google이 종종 구버전을 신규 사용자에게 막아서 바뀔 수 있다.
+  `python study_log_to_anki.py ... --ai` 실행 시 "no longer available" 같은 404
+  오류가 뜨면, `--model gemini-2.5-flash`처럼 다른 모델명을 직접 지정하거나
+  `ai_extract.py`의 `DEFAULT_MODEL` 값을 바꾼다. (기본값은 `gemini-flash-latest`
+  별칭이라 보통은 자동으로 최신 모델을 따라간다.)
+- 윈도우(특히 한국어 윈도우)에서 `python 파일명.py` 실행 시
+  `SyntaxError: Non-UTF-8 code starting with ...` 가 뜨면, 파일이 깨진 게 아니라
+  콘솔/로케일 인코딩 설정 문제일 수 있다. `run_study_log.bat`은 이미 이 문제를
+  자동으로 피하도록 만들어져 있고, 직접 명령어로 실행할 때 같은 오류가 나면
+  실행 전에 `$env:PYTHONUTF8=1` (PowerShell) 또는 `set PYTHONUTF8=1` (cmd)을
+  먼저 입력한다.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """직접 정리한 학습 로그(study_log.md)를 parse_takeout.py와 같은 JSON 구조로 변환한다.
 
 로그 파일에서 "## "로 시작하는 줄을 날짜/구분 헤더로 인식하고, 그 아래 줄들을

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """Anki에서 자주 까먹는(lapse가 많은) 카드를 찾아 보여준다.
 
 Anki는 카드마다 "다시(Again)"를 누른 횟수(lapses)를 이미 추적하고 있으므로,

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """PC에서 Anki + AnkiConnect가 정상 작동 중인지 확인한다 (localhost:8765 연결 테스트)."""
 
 import sys

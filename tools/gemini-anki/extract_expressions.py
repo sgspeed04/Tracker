@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """parse_takeout.py의 출력(JSON)에서 핵심 표현 후보를 추출한다.
 
 Gemini 응답이 굵게(**표현**) 강조 후 대시로 설명을 붙이는 습관, 또는
