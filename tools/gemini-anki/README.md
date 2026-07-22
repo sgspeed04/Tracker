@@ -137,8 +137,11 @@ python tools/gemini-anki/test_connection.py
 
 `run_study_log.bat`을 더블클릭하면 이 중 **실제로 존재하는 파일들만** 찾아서
 각자의 덱으로 카드를 만들어준다 — 4개를 다 만들 필요 없이, 쓰는 것만 만들어도
-된다. 다른 주제를 추가하고 싶으면 `run_study_log.bat`을 열어서
-`call :process "파일명" "덱이름"` 줄을 하나 더 추가하면 된다.
+된다. 파일↔덱 매핑은 `run_all_logs.py`의 `LOG_DECK_MAP`에 있으며, 다른 주제를
+추가하고 싶으면 거기에 한 줄만 추가하면 된다. (`run_study_log.bat` 자체는
+일부러 순수 ASCII로만 되어 있다 — 배치 파일에 한글이 섞이면 윈도우 cmd가
+코드페이지 문제로 파일을 깨진 것처럼 잘못 읽는 경우가 있어서, 한글이 필요한
+부분은 전부 `run_all_logs.py` 쪽으로 옮겨뒀다.)
 
 ## 6. 방식 B: Google Takeout에서 Gemini Apps 대화 기록 전체 내보내기
 
