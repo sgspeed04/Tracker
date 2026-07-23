@@ -258,6 +258,9 @@ python tools/gemini-anki/study_log_to_file.py study_log.md --ai -o anki_import.t
 - `--ai` 옵션은 `study_log.md`에 있는 항목 하나당 Gemini API를 한 번씩 호출한다.
   개인이 하루 몇 개씩 쓰는 정도면 무료 사용량 한도 안에서 충분하지만, 로그가
   아주 길고 많아지면 API 사용량/요금을 가끔 확인하는 게 좋다.
+- `--ai` 추출은 단어/짧은 표현뿐 아니라 통째로 외울 만한 문장도 섞어서 최대한
+  많이 뽑도록 프롬프트가 짜여 있다. 표현이 중국어면 뜻(meaning) 맨 앞에 병음이
+  자동으로 붙는다.
 - `GEMINI_API_KEY`는 절대 `study_log.md`나 코드에 직접 적어 커밋하지 말고,
   환경변수로만 등록해서 쓴다.
 - Gemini 모델 이름은 Google이 종종 구버전을 신규 사용자에게 막아서 바뀔 수 있다.
