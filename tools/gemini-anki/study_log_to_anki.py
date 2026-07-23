@@ -14,7 +14,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from extraction import get_candidates
+from extraction import ExtractionError, get_candidates
 from parse_study_log import parse_log
 from push_to_anki import push_notes
 
@@ -44,7 +44,11 @@ def main() -> None:
         sys.exit(1)
 
     activities = parse_log(args.log_file.read_text(encoding="utf-8"))
-    candidates = get_candidates(activities, args.ai, args.api_key, args.model)
+    try:
+        candidates = get_candidates(activities, args.ai, args.api_key, args.model)
+    except ExtractionError as exc:
+        print(exc, file=sys.stderr)
+        sys.exit(1)
 
     if not candidates:
         if args.ai:

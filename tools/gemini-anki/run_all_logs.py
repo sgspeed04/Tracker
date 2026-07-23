@@ -12,7 +12,7 @@ import os
 import sys
 from pathlib import Path
 
-from extraction import get_candidates
+from extraction import ExtractionError, get_candidates
 from parse_study_log import parse_log
 from push_to_anki import push_notes
 
@@ -30,7 +30,12 @@ LOG_DECK_MAP = {
 def process(log_file: Path, deck: str) -> None:
     print(f"\n=== {log_file.name} -> 덱: {deck} ===")
     activities = parse_log(log_file.read_text(encoding="utf-8"))
-    candidates = get_candidates(activities, use_ai=True)
+    try:
+        candidates = get_candidates(activities, use_ai=True)
+    except ExtractionError as exc:
+        print(exc)
+        print(f"{log_file.name} 처리를 건너뛰고 다음 파일로 넘어갑니다.")
+        return
 
     if not candidates:
         print("추출된 표현 후보가 없습니다.")

@@ -261,6 +261,12 @@ python tools/gemini-anki/study_log_to_file.py study_log.md --ai -o anki_import.t
 - `--ai` 추출은 단어/짧은 표현뿐 아니라 통째로 외울 만한 문장도 섞어서 최대한
   많이 뽑도록 프롬프트가 짜여 있다. 표현이 중국어면 뜻(meaning) 맨 앞에 병음이
   자동으로 붙는다.
+- Gemini 서버가 일시적으로 과부하(503)일 때는 자동으로 몇 초 간격을 두고
+  최대 3번까지 재시도한다. `run_all_logs.py`(`run_study_log.bat`)로 여러 파일을
+  한 번에 처리할 때는, 재시도해도 실패한 파일 하나 때문에 전체가 멈추지 않고
+  그 파일만 건너뛰고 나머지 파일은 계속 처리된다 — 나중에 그 파일만 다시
+  `run_study_log.bat`을 돌리면 된다 (같은 로그를 또 돌려도 중복은 안전하게
+  처리됨).
 - `GEMINI_API_KEY`는 절대 `study_log.md`나 코드에 직접 적어 커밋하지 말고,
   환경변수로만 등록해서 쓴다.
 - Gemini 모델 이름은 Google이 종종 구버전을 신규 사용자에게 막아서 바뀔 수 있다.
