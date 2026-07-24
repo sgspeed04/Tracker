@@ -568,7 +568,7 @@ async function renderCandidates() {
   document.getElementById('topbarActions').innerHTML = '';
   document.getElementById('content').innerHTML = `<div class="card"><div class="empty"><p>불러오는 중...</p></div></div>`;
   try {
-    const res = await fetch('data/india_tenders.json', {cache:'no-store'});
+    const res = await fetch('data/tender_candidates.json', {cache:'no-store'});
     const data = await res.json();
     candidates = data.tenders || [];
     const updatedAt = data.updated_at || '알 수 없음';
@@ -577,33 +577,34 @@ async function renderCandidates() {
     document.getElementById('content').innerHTML = `
     <div class="card" style="background:#fffbeb;border-color:#fde68a">
       <div style="font-size:13px;line-height:1.6">
-        🤖 <b>인도 자동수집</b> — 최근 갱신: ${updatedAt}<br>
-        CPPP는 매일 정상 수집되지만(계량기 키워드 매칭이 없는 날은 0건이 정상), GeM은 봇 차단으로 계속 실패합니다.
-        더 폭넓게 찾으려면 <b>국가별 바로가기</b> 탭에서 수동 검색 후 직접 등록하는 것도 함께 활용하세요.
+        🤖 <b>다국가 자동수집 (파일럿)</b> — 최근 갱신: ${updatedAt}<br>
+        국가/소스마다 실제로 성공하는지 다름 — 인도 CPPP는 매일 정상 수집되지만(계량기 키워드 매칭이 없는 날은 0건이 정상),
+        GeM처럼 봇 차단으로 계속 실패하는 소스도 있습니다. 자동수집이 안 되는 국가는
+        <b>국가별 바로가기</b> 탭에서 수동 검색 후 직접 등록하는 것도 함께 활용하세요.
       </div>
     </div>
     <div class="card" style="padding:0">
     <div class="tbl-wrap">
     <table>
-      <tr><th>수집일</th><th>제목</th><th>기관/번호</th><th>마감일</th><th></th></tr>
+      <tr><th>수집일</th><th>국가/출처</th><th>제목</th><th>마감일</th><th></th></tr>
       ${candidates.length ? candidates.map(c=>`
         <tr>
           <td style="white-space:nowrap">${c.collected_at||'-'}</td>
+          <td>${countryBadge(c.country)} <span class="badge badge-gray">${c.source||'-'}</span></td>
           <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="${c.url}" target="_blank" style="color:var(--text)">${c.title||'-'}</a></td>
-          <td>${c.org||'-'} ${c.tender_no?`<div style="font-size:11px;color:var(--muted)">${c.tender_no}</div>`:''}</td>
           <td>${c.deadline||'-'}</td>
           <td>${existingUrls.has(c.url) ? '<span class="badge badge-gray">등록됨</span>' : `<button class="btn btn-outline btn-sm" onclick='promoteCandidate(${JSON.stringify(c)})'>+ 입찰로 등록</button>`}</td>
         </tr>`).join('') : `<tr><td colspan="5"><div class="empty"><div class="empty-icon">🤖</div><p>수집된 후보가 없습니다 (아직 미실행이거나 사이트 차단)</p></div></td></tr>`}
     </table></div></div>`;
   } catch(e) {
-    document.getElementById('content').innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div><p>data/india_tenders.json을 아직 불러올 수 없습니다 (자동수집 미실행)</p></div></div>`;
+    document.getElementById('content').innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div><p>data/tender_candidates.json을 아직 불러올 수 없습니다 (자동수집 미실행)</p></div></div>`;
   }
 }
 function promoteCandidate(c) {
   openTenderModal(null, {
-    country: '인도', meter_type: '',
+    country: c.country || '', meter_type: '',
     title: c.title, org: c.org, tender_no: c.tender_no,
-    source: 'CPPP', url: c.url, deadline: c.deadline, status: 'new',
+    source: c.source || '', url: c.url, deadline: c.deadline, status: 'new',
   });
 }
 
