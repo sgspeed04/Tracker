@@ -79,13 +79,16 @@ Notion - 브리핑 저장
 - **Method**: POST
 - **Headers**:
   - `Authorization`: `Bearer YOUR_GROQ_API_KEY`
+  - `Content-Type`: `application/json`
 - **Body content type**: application/json
 - **Body input method**: JSON string
 - **Body content**:
 
 ```json
-{"model":"llama-3.3-70b-versatile","messages":[{"role":"user","content":"오늘: {{formatDate(now; \"YYYY년 MM월 DD일\")}}\n관심 종목: 삼성전자, SK하이닉스, TSLA, 비트코인\n\n최신 뉴스:\n{{1.title}}\n\n마크다운, 코드블록, 설명 없이 아래 JSON 형식 그대로만 출력하세요:\n{\"market\":\"시장동향 3~4문장\",\"news\":\"뉴스 3~4개 (· 로 시작)\",\"stocks\":\"종목분석 (▸ 로 시작)\",\"checklist\":[\"액션1\",\"액션2\",\"액션3\"]}"}],"max_tokens":1000}
+{"model":"llama-3.3-70b-versatile","messages":[{"role":"system","content":"You are a JSON API. Always respond with raw JSON only."},{"role":"user","content":"오늘: {{formatDate(now; \"YYYY년 MM월 DD일\")}}\n관심 종목: 삼성전자, SK하이닉스, TSLA, 비트코인\n\n최신 뉴스:\n{{1.title}}\n\n{\"market\":\"시장동향 3~4문장\",\"news\":\"뉴스 3~4개 (· 로 시작)\",\"stocks\":\"종목분석 (▸ 로 시작)\",\"checklist\":[\"액션1\",\"액션2\",\"액션3\"]}"}],"max_tokens":1000,"response_format":{"type":"json_object"}}
 ```
+
+> ⚠️ `"response_format":{"type":"json_object"}` — 이것이 핵심! AI가 순수 JSON만 반환하도록 강제해서 "Validation failed" 에러를 방지합니다.
 
 - **Parse response**: Yes
 - **Authentication type**: No authentication
@@ -142,8 +145,9 @@ make.com 하단 → **Schedule settings**:
 |------|------|------|
 | 403 Forbidden (RSS) | RSS 피드 차단 | Google News RSS URL로 교체 |
 | Unauthorized | API 키 오류 | `Bearer 키값` 형식 확인 (+ 없이 공백만) |
-| Source is not valid JSON | AI가 마크다운으로 응답 | 프롬프트에 "코드블록 없이" 명시 |
-| Validation failed | 모듈 번호 불일치 | JSON string의 모듈 번호 확인 |
+| Source is not valid JSON | AI가 마크다운으로 응답 | Body에 `"response_format":{"type":"json_object"}` 추가 |
+| Validation failed (JSON Parse) | AI가 마크다운 코드블록으로 감쌈 | Body에 `"response_format":{"type":"json_object"}` 추가 (위 Body 참고) |
+| Validation failed (모듈 번호) | JSON string 모듈 번호 불일치 | `{{10.Data.choices[1].message.content}}`에서 10을 실제 HTTP 모듈 번호로 변경 |
 | 변수가 보라색 아님 | 텍스트로 직접 입력 | 맵핑 버튼으로 변수 선택 |
 
 ---
