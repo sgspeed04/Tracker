@@ -1,0 +1,255 @@
+{
+  "name": "일일 투자 브리핑 자동화",
+  "flow": [
+    {
+      "id": 1,
+      "module": "builtin:BasicScheduler",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 }
+      }
+    },
+    {
+      "id": 2,
+      "module": "rss:ActionTrigger",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "url": "https://www.hankyung.com/feed/all-news"
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": -150 },
+        "restore": {}
+      }
+    },
+    {
+      "id": 3,
+      "module": "builtin:TextAggregator",
+      "version": 1,
+      "parameters": {
+        "rowSeparator": "\\n"
+      },
+      "mapper": {
+        "value": "- {{2.title}}"
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": -150 }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {
+        "handleErrors": false,
+        "useNewZLibDeCompress": true
+      },
+      "mapper": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "post",
+        "headers": [
+          { "name": "x-api-key",         "value": "YOUR_CLAUDE_API_KEY" },
+          { "name": "anthropic-version",  "value": "2023-06-01" },
+          { "name": "content-type",       "value": "application/json" }
+        ],
+        "qs": [],
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "parseResponse": true,
+        "data": "{\"model\":\"claude-haiku-4-5-20251001\",\"max_tokens\":1500,\"messages\":[{\"role\":\"user\",\"content\":\"오늘: {{formatDate(now; \\\"YYYY년 MM월 DD일 dddd\\\")}}\n관심 종목: YOUR_WATCHLIST_HERE\n\n최신 뉴스 헤드라인:\n{{3.text}}\n\n아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):\n{\\\"market\\\":\\\"글로벌·국내 시장 동향 3~4문장\\\",\\\"news\\\":\\\"주요 뉴스 요약 3~4개 (각 줄 · 로 시작)\\\",\\\"stocks\\\":\\\"관심 종목별 분석 (각 종목 앞 ▸ 붙이기)\\\",\\\"checklist\\\":[\\\"오늘 투자 액션 1\\\",\\\"액션 2\\\",\\\"액션 3\\\",\\\"리스크 체크\\\"]}\"}]}"
+      },
+      "metadata": {
+        "designer": { "x": 900, "y": 0 }
+      }
+    },
+    {
+      "id": 5,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "parameters": {
+        "type": ""
+      },
+      "mapper": {
+        "json": "{{4.data.content[1].text}}"
+      },
+      "metadata": {
+        "designer": { "x": 1200, "y": 0 }
+      }
+    },
+    {
+      "id": 6,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 1500, "y": 0 }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 7,
+              "module": "notion:CreateDatabaseItem",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": "YOUR_NOTION_CONNECTION_ID"
+              },
+              "mapper": {
+                "database": "YOUR_NOTION_DATABASE_ID",
+                "properties": [
+                  {
+                    "name": "Name",
+                    "value": "📈 투자 브리핑 {{formatDate(now; \"YYYY-MM-DD\")}}"
+                  }
+                ],
+                "content": [
+                  {
+                    "type": "heading_2",
+                    "text": "📊 시장 동향"
+                  },
+                  {
+                    "type": "paragraph",
+                    "text": "{{5.market}}"
+                  },
+                  {
+                    "type": "heading_2",
+                    "text": "📰 주요 뉴스"
+                  },
+                  {
+                    "type": "paragraph",
+                    "text": "{{5.news}}"
+                  },
+                  {
+                    "type": "heading_2",
+                    "text": "🎯 관심 종목 분석"
+                  },
+                  {
+                    "type": "paragraph",
+                    "text": "{{5.stocks}}"
+                  },
+                  {
+                    "type": "heading_2",
+                    "text": "✅ 오늘의 체크리스트"
+                  },
+                  {
+                    "type": "bulleted_list_item",
+                    "text": "{{join(5.checklist; \"\\n\")}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": -200 }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 8,
+              "module": "google-sheets:ActionAddRowV2",
+              "version": 2,
+              "parameters": {
+                "__IMTCONN__": "YOUR_GOOGLE_CONNECTION_ID"
+              },
+              "mapper": {
+                "spreadsheetId": "YOUR_GOOGLE_SHEET_ID",
+                "sheetId": "브리핑",
+                "values": {
+                  "날짜": "{{formatDate(now; \"YYYY-MM-DD HH:mm\")}}",
+                  "시장동향": "{{5.market}}",
+                  "주요뉴스": "{{5.news}}",
+                  "종목분석": "{{5.stocks}}",
+                  "체크리스트": "{{join(5.checklist; \" | \")}}"
+                }
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": 0 }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 9,
+              "module": "slack:ActionCreateMessage",
+              "version": 4,
+              "parameters": {
+                "__IMTCONN__": "YOUR_SLACK_CONNECTION_ID"
+              },
+              "mapper": {
+                "channel": "YOUR_SLACK_CHANNEL_ID",
+                "text": "📈 *일일 투자 브리핑* — {{formatDate(now; \"YYYY-MM-DD (ddd)\")}}",
+                "blocks": "[{\"type\":\"header\",\"text\":{\"type\":\"plain_text\",\"text\":\"📈 일일 투자 브리핑 — {{formatDate(now; \\\"MM/DD\\\")}}\"}},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*📊 시장 동향*\\n{{5.market}}\"}},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*📰 주요 뉴스*\\n{{5.news}}\"}},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*🎯 종목 분석*\\n{{5.stocks}}\"}},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*✅ 체크리스트*\\n· {{join(5.checklist; \\\"\\\\n· \\\")}}\"}}]"
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": 200 }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 10,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": false
+              },
+              "mapper": {
+                "url": "https://kapi.kakao.com/v2/api/talk/memo/default/send",
+                "method": "post",
+                "headers": [
+                  { "name": "Authorization", "value": "Bearer YOUR_KAKAO_ACCESS_TOKEN" },
+                  { "name": "Content-Type",  "value": "application/x-www-form-urlencoded" }
+                ],
+                "bodyType": "urlencoded",
+                "fields": [
+                  {
+                    "key": "template_object",
+                    "value": "{\"object_type\":\"text\",\"text\":\"📈 일일 투자 브리핑 {{formatDate(now; \\\"MM/DD\\\")}}\\n\\n📊 시장 동향\\n{{5.market}}\\n\\n📰 주요 뉴스\\n{{5.news}}\\n\\n🎯 종목 분석\\n{{5.stocks}}\\n\\n✅ 체크리스트\\n· {{join(5.checklist; \\\"\\\\n· \")}}\",\"link\":{\"web_url\":\"https://www.google.com\"}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": 400 },
+                "_comment": "카카오 나에게 보내기 API. 카카오 Developers에서 액세스 토큰 발급 필요"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "variables": [
+      {
+        "name": "watchlist",
+        "type": "text",
+        "label": "관심 종목",
+        "value": "삼성전자, SK하이닉스, TSLA, S&P500 ETF, 비트코인"
+      }
+    ]
+  }
+}

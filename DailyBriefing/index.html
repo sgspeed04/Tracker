@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📈 일일 투자 브리핑</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d2e;
+  --surface2: #1e2437;
+  --border: #262a3e;
+  --accent: #00d4aa;
+  --accent-dim: rgba(0,212,170,0.1);
+  --danger: #ff5f6d;
+  --warn: #f5a623;
+  --text: #dde1ee;
+  --text2: #7d88a0;
+  --text3: #3e4560;
+  --tag: #22263a;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.container { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
+
+/* Header */
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.header-left h1 { font-size: 20px; font-weight: 700; }
+.header-left .sub { font-size: 12px; color: var(--text2); margin-top: 3px; }
+.header-right { display: flex; gap: 8px; }
+
+.btn { padding: 8px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-accent { background: var(--accent); color: #0a0d14; }
+.btn-accent:hover:not(:disabled) { opacity: 0.85; }
+.btn-ghost { background: var(--surface); color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); }
+
+/* Status bar */
+.status-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 14px; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+.dot.ok { background: var(--accent); }
+.dot.loading { background: var(--warn); animation: blink 0.9s infinite; }
+.dot.err { background: var(--danger); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+.status-txt { font-size: 12px; color: var(--text2); flex: 1; min-width: 0; }
+.next-txt { font-size: 12px; color: var(--text3); white-space: nowrap; }
+
+.sched-row { display: flex; align-items: center; gap: 6px; }
+.sched-lbl { font-size: 12px; color: var(--text2); }
+.switch { position: relative; display: inline-block; width: 32px; height: 18px; }
+.switch input { display: none; }
+.slider { position: absolute; inset: 0; background: var(--border); border-radius: 18px; cursor: pointer; transition: 0.2s; }
+.slider:before { content: ''; position: absolute; width: 12px; height: 12px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+input:checked + .slider { background: var(--accent); }
+input:checked + .slider:before { transform: translateX(14px); }
+
+/* Banner */
+.banner { display: none; align-items: center; gap: 10px; background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: var(--accent); }
+.banner.show { display: flex; }
+.banner-close { margin-left: auto; background: none; border: none; color: var(--accent); font-size: 18px; cursor: pointer; line-height: 1; }
+
+/* Grid */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+@media (max-width: 580px) { .grid { grid-template-columns: 1fr; } }
+
+/* Card */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; min-height: 190px; display: flex; flex-direction: column; }
+.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.card-title { font-size: 14px; font-weight: 600; }
+.card-badge { font-size: 11px; background: var(--tag); color: var(--text2); padding: 2px 8px; border-radius: 20px; }
+.card-body { font-size: 13px; color: var(--text2); line-height: 1.75; flex: 1; white-space: pre-wrap; word-break: break-word; }
+.card-empty { color: var(--text3); font-size: 13px; text-align: center; padding: 28px 0; }
+
+/* Checklist */
+.chk-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
+.chk-item:first-child { border-top: none; padding-top: 0; }
+.chk-item input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; margin-top: 2px; }
+.chk-item label { cursor: pointer; font-size: 13px; color: var(--text2); flex: 1; line-height: 1.5; }
+.chk-item.done label { text-decoration: line-through; color: var(--text3); }
+
+/* Loading */
+.loading-wave { display: flex; justify-content: center; align-items: center; padding: 48px 0; gap: 4px; }
+.loading-wave span { display: inline-block; width: 5px; height: 20px; background: var(--accent); border-radius: 3px; opacity: 0.5; animation: wave 1.1s ease-in-out infinite; }
+.loading-wave span:nth-child(2) { animation-delay: 0.1s; }
+.loading-wave span:nth-child(3) { animation-delay: 0.2s; }
+.loading-wave span:nth-child(4) { animation-delay: 0.3s; }
+.loading-wave span:nth-child(5) { animation-delay: 0.4s; }
+@keyframes wave { 0%,100%{transform:scaleY(0.4)} 50%{transform:scaleY(1)} }
+
+/* History */
+.hist-toggle { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--text2); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.hist-toggle:hover { color: var(--text); }
+.hist-list { display: none; margin-top: 8px; }
+.hist-list.open { display: block; }
+.hist-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+.hist-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; cursor: pointer; }
+.hist-head:hover { background: var(--surface2); }
+.hist-date { font-size: 13px; font-weight: 600; }
+.hist-assets { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.hist-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 4px; }
+.hist-del:hover { color: var(--danger); }
+.hist-body { display: none; padding: 12px 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text2); line-height: 1.7; white-space: pre-wrap; }
+
+/* Settings overlay + panel */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 100; backdrop-filter: blur(3px); }
+.overlay.open { display: block; }
+.panel { position: fixed; right: 0; top: 0; bottom: 0; width: min(380px, 100vw); background: var(--surface2); border-left: 1px solid var(--border); z-index: 101; overflow-y: auto; padding: 24px; transform: translateX(100%); transition: transform 0.22s ease; }
+.panel.open { transform: translateX(0); }
+.panel-title { font-size: 16px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.panel-close { background: none; border: none; color: var(--text2); font-size: 22px; cursor: pointer; line-height: 1; }
+
+.s-section { margin-bottom: 24px; }
+.s-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.s-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--text); outline: none; }
+.s-input:focus { border-color: var(--accent); }
+.s-btn { width: 100%; background: var(--accent); color: #0a0d14; border: none; border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+.s-btn:hover { opacity: 0.85; }
+.s-btn-ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text2); }
+.s-btn-ghost:hover { color: var(--text); opacity: 1; }
+
+/* Asset tags */
+.asset-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; min-height: 28px; }
+.asset-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--tag); border-radius: 20px; padding: 4px 10px; font-size: 12px; color: var(--text2); }
+.asset-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; line-height: 1; padding: 0; }
+.asset-del:hover { color: var(--danger); }
+.asset-row { display: flex; gap: 6px; }
+.asset-row .s-input { flex: 1; }
+.asset-add { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text2); cursor: pointer; font-size: 13px; white-space: nowrap; }
+.asset-add:hover { color: var(--text); }
+
+/* Key info row */
+.key-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+.key-row-txt { color: var(--text2); }
+.key-change { background: none; border: none; color: var(--accent); font-size: 12px; cursor: pointer; text-decoration: underline; }
+
+/* Schedule checkboxes */
+.sched-options { display: flex; gap: 16px; }
+.sched-opt { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text2); cursor: pointer; }
+.sched-opt input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>📈 일일 투자 브리핑</h1>
+      <div class="sub" id="sub-date">마지막 업데이트: 없음</div>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-ghost" onclick="openPanel()">⚙️ 설정</button>
+      <button class="btn btn-accent" id="gen-btn" onclick="generateBriefing()">🤖 지금 생성</button>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <div class="dot" id="dot"></div>
+    <span class="status-txt" id="status-txt">대기 중 · 생성 버튼을 눌러주세요</span>
+    <div class="sched-row">
+      <span class="sched-lbl">자동</span>
+      <label class="switch">
+        <input type="checkbox" id="auto-sw" onchange="toggleAuto(this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <span class="next-txt" id="next-txt"></span>
+  </div>
+
+  <!-- New briefing banner -->
+  <div class="banner" id="banner">
+    <span>🔔</span>
+    <span id="banner-txt">새 브리핑이 생성됐어요!</span>
+    <button class="banner-close" onclick="closeBanner()">×</button>
+  </div>
+
+  <!-- 4-card grid -->
+  <div class="grid">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">📊 시장 동향</span>
+        <span class="card-badge" id="badge-market">-</span>
+      </div>
+      <div class="card-body" id="card-market"><div class="card-empty">브리핑을 생성하면<br>표시돼요</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">📰 주요 뉴스</span>
+        <span class="card-badge" id="badge-news">-</span>
+      </div>
+      <div class="card-body" id="card-news"><div class="card-empty">브리핑을 생성하면<br>표시돼요</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">🎯 관심 종목 분석</span>
+        <span class="card-badge" id="badge-stock">-</span>
+      </div>
+      <div class="card-body" id="card-stock"><div class="card-empty">브리핑을 생성하면<br>표시돼요</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">✅ 오늘의 체크리스트</span>
+        <span class="card-badge" id="badge-check">0/0</span>
+      </div>
+      <div class="card-body" id="card-check"><div class="card-empty">브리핑을 생성하면<br>표시돼요</div></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <button class="hist-toggle" onclick="toggleHist()">
+    <span>📜 이전 브리핑 기록</span>
+    <span id="hist-arrow">▼</span>
+  </button>
+  <div class="hist-list" id="hist-list"></div>
+
+</div>
+
+<!-- Settings overlay -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="panel" id="panel">
+  <div class="panel-title">
+    ⚙️ 설정
+    <button class="panel-close" onclick="closePanel()">×</button>
+  </div>
+
+  <!-- API Key -->
+  <div class="s-section">
+    <div class="s-label">Claude API 키</div>
+    <div id="key-set" style="display:none">
+      <div class="key-row">
+        <span class="key-row-txt" id="key-masked">설정됨</span>
+        <button class="key-change" onclick="resetKey()">변경</button>
+      </div>
+    </div>
+    <div id="key-unset">
+      <input class="s-input" id="key-inp" type="password" placeholder="sk-ant-..." style="margin-bottom:0">
+      <button class="s-btn" onclick="saveKey()">저장</button>
+      <p style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.6">
+        키는 브라우저 로컬에만 저장돼요. <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a>에서 발급.
+      </p>
+    </div>
+  </div>
+
+  <!-- Watchlist -->
+  <div class="s-section">
+    <div class="s-label">관심 종목 · 자산</div>
+    <div class="asset-wrap" id="asset-wrap"></div>
+    <div class="asset-row">
+      <input class="s-input" id="asset-inp" placeholder="삼성전자, TSLA, BTC..." onkeydown="if(event.key==='Enter')addAsset()">
+      <button class="asset-add" onclick="addAsset()">+ 추가</button>
+    </div>
+  </div>
+
+  <!-- Schedule -->
+  <div class="s-section">
+    <div class="s-label">자동 생성 시간</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.5">페이지가 열려 있을 때 지정 시간에 자동 생성돼요.</p>
+    <div class="sched-options">
+      <label class="sched-opt">
+        <input type="checkbox" id="s-morning" onchange="saveSched()"> ☀️ 오전 7:00
+      </label>
+      <label class="sched-opt">
+        <input type="checkbox" id="s-night" onchange="saveSched()"> 🌙 오후 10:00
+      </label>
+    </div>
+  </div>
+
+  <!-- Notification -->
+  <div class="s-section">
+    <div class="s-label">브라우저 알림</div>
+    <button class="s-btn s-btn-ghost" onclick="reqNotif()">🔔 알림 허용 요청</button>
+    <p style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.5" id="notif-lbl">자동 생성 시 데스크탑 알림을 받을 수 있어요.</p>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+let watchlist  = JSON.parse(localStorage.getItem('brief_wl') || '[]');
+let autoOn     = localStorage.getItem('brief_auto') === 'true';
+let schedAM    = localStorage.getItem('brief_am') !== 'false';
+let schedPM    = localStorage.getItem('brief_pm') !== 'false';
+let checkState = {};
+let schedTimer = null;
+
+/* ── Boot ── */
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('auto-sw').checked = autoOn;
+  document.getElementById('s-morning').checked = schedAM;
+  document.getElementById('s-night').checked   = schedPM;
+  refreshKeyUI();
+  renderAssets();
+  refreshNotifLabel();
+  updateNextTxt();
+
+  const saved = JSON.parse(localStorage.getItem('brief_last') || 'null');
+  if (saved) {
+    renderCards(saved);
+    document.getElementById('sub-date').textContent = `마지막 업데이트: ${saved.date}`;
+    setDot('ok', `${saved.date} 로드됨`);
+  }
+
+  if (autoOn) startSched();
+  setInterval(updateNextTxt, 30000);
+});
+
+/* ── API Key ── */
+function refreshKeyUI() {
+  const k = localStorage.getItem('brief_key') || '';
+  document.getElementById('key-unset').style.display = k ? 'none' : '';
+  document.getElementById('key-set').style.display   = k ? '' : 'none';
+  if (k) document.getElementById('key-masked').textContent = `설정됨 (${k.slice(0,12)}...)`;
+}
+
+function saveKey() {
+  const v = document.getElementById('key-inp').value.trim();
+  if (!v.startsWith('sk-ant-')) { alert('올바른 Claude API 키를 입력하세요 (sk-ant-로 시작)'); return; }
+  localStorage.setItem('brief_key', v);
+  document.getElementById('key-inp').value = '';
+  refreshKeyUI();
+}
+
+function resetKey() {
+  if (confirm('API 키를 삭제하고 다시 설정할까요?')) {
+    localStorage.removeItem('brief_key');
+    refreshKeyUI();
+  }
+}
+
+/* ── Watchlist ── */
+function renderAssets() {
+  const wrap = document.getElementById('asset-wrap');
+  wrap.innerHTML = watchlist.length
+    ? watchlist.map((a,i) => `<span class="asset-tag">${esc(a)}<button class="asset-del" onclick="delAsset(${i})">×</button></span>`).join('')
+    : '<span style="font-size:12px;color:var(--text3)">아직 종목이 없어요</span>';
+}
+
+function addAsset() {
+  const inp = document.getElementById('asset-inp');
+  const v = inp.value.trim();
+  if (!v) return;
+  v.split(/[,，\s]+/).filter(Boolean).forEach(t => { if (!watchlist.includes(t)) watchlist.push(t); });
+  localStorage.setItem('brief_wl', JSON.stringify(watchlist));
+  inp.value = '';
+  renderAssets();
+}
+
+function delAsset(i) {
+  watchlist.splice(i, 1);
+  localStorage.setItem('brief_wl', JSON.stringify(watchlist));
+  renderAssets();
+}
+
+/* ── Status dot ── */
+function setDot(type, txt) {
+  document.getElementById('dot').className = 'dot ' + (type === 'ok' ? 'ok' : type === 'loading' ? 'loading' : type === 'err' ? 'err' : '');
+  document.getElementById('status-txt').textContent = txt;
+}
+
+/* ── Scheduler ── */
+function toggleAuto(val) {
+  autoOn = val;
+  localStorage.setItem('brief_auto', val);
+  val ? startSched() : stopSched();
+  updateNextTxt();
+}
+
+function startSched() {
+  stopSched();
+  schedTimer = setInterval(checkSched, 20000);
+  checkSched();
+}
+
+function stopSched() {
+  if (schedTimer) { clearInterval(schedTimer); schedTimer = null; }
+}
+
+function checkSched() {
+  if (!autoOn) return;
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  const today = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  const lastFire = localStorage.getItem('brief_last_fire') || '';
+
+  const shouldFire =
+    (schedAM && h === 7  && m < 2 && lastFire !== `${today}_07`) ||
+    (schedPM && h === 22 && m < 2 && lastFire !== `${today}_22`);
+
+  if (shouldFire) {
+    const key = h === 7 ? `${today}_07` : `${today}_22`;
+    localStorage.setItem('brief_last_fire', key);
+    generateBriefing(true);
+  }
+}
+
+function saveSched() {
+  schedAM = document.getElementById('s-morning').checked;
+  schedPM = document.getElementById('s-night').checked;
+  localStorage.setItem('brief_am', schedAM);
+  localStorage.setItem('brief_pm', schedPM);
+  updateNextTxt();
+}
+
+function updateNextTxt() {
+  if (!autoOn) { document.getElementById('next-txt').textContent = '자동 꺼짐'; return; }
+  const now = new Date();
+  const h = now.getHours();
+  let nextH = null;
+  if (schedAM && h < 7) nextH = 7;
+  else if (schedPM && h < 22) nextH = 22;
+  else if (schedAM) nextH = 7;
+  else if (schedPM) nextH = 22;
+
+  if (nextH === null) { document.getElementById('next-txt').textContent = ''; return; }
+
+  const next = new Date();
+  if (h >= nextH) next.setDate(next.getDate() + 1);
+  next.setHours(nextH, 0, 0, 0);
+  const diff = Math.max(0, Math.round((next - now) / 60000));
+  const dh = Math.floor(diff / 60), dm = diff % 60;
+  const label = nextH === 7 ? '오전 7시' : '오후 10시';
+  document.getElementById('next-txt').textContent =
+    `다음: ${label} (${dh > 0 ? dh + '시간 ' : ''}${dm}분 후)`;
+}
+
+/* ── Generate briefing ── */
+async function generateBriefing(isAuto = false) {
+  const key = localStorage.getItem('brief_key') || '';
+  if (!key) { openPanel(); alert('먼저 Claude API 키를 설정해주세요.'); return; }
+
+  setDot('loading', '브리핑 생성 중...');
+  setCardsLoading();
+  document.getElementById('gen-btn').disabled = true;
+
+  const today = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const assets = watchlist.length ? watchlist.join(', ') : '(설정된 종목 없음)';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: `오늘은 ${today}입니다. 아래 JSON 형식으로만 응답해주세요 (다른 텍스트 없이):
+
+{
+  "market": "글로벌·국내 주요 시장 동향 요약 (3~4문장, 지수·환율·금리 언급)",
+  "news": "주요 투자 관련 뉴스 3~4개, 각 항목은 '· '로 시작",
+  "stocks": "관심 종목별 핵심 체크포인트 (${assets}), 각 종목 앞에 '▸ ' 붙이기, 없으면 일반 투자 포인트",
+  "checklist": ["오늘 해야 할 투자 액션 1", "액션 2", "액션 3", "리스크 체크 항목"]
+}
+
+모든 내용은 한국어로 작성하세요.`
+        }]
+      })
+    });
+
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data  = await res.json();
+    const raw   = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(raw);
+
+    const now = new Date().toLocaleString('ko-KR');
+    const record = { date: now, assets, ...parsed };
+
+    renderCards(parsed);
+    localStorage.setItem('brief_last', JSON.stringify(record));
+    saveHistory(record);
+
+    document.getElementById('sub-date').textContent = `마지막 업데이트: ${now}`;
+    setDot('ok', `${now} 업데이트 완료`);
+
+    if (isAuto) {
+      showBanner(`${now} 자동 브리핑 생성 완료!`);
+      pushNotif('📈 투자 브리핑', `${now} 브리핑이 준비됐어요`);
+    }
+
+  } catch (e) {
+    setDot('err', `오류: ${e.message}`);
+    ['card-market','card-news','card-stock','card-check'].forEach(id => {
+      document.getElementById(id).innerHTML =
+        `<p style="color:var(--danger);font-size:13px">오류: ${esc(e.message)}<br><small style="color:var(--text3);margin-top:4px;display:block">API 키를 확인하거나 CORS 프록시가 필요할 수 있어요.</small></p>`;
+    });
+  } finally {
+    document.getElementById('gen-btn').disabled = false;
+  }
+}
+
+/* ── Cards ── */
+const LOADING_HTML = `<div class="loading-wave"><span></span><span></span><span></span><span></span><span></span></div>`;
+
+function setCardsLoading() {
+  ['card-market','card-news','card-stock','card-check'].forEach(id => {
+    document.getElementById(id).innerHTML = LOADING_HTML;
+  });
+  ['badge-market','badge-news','badge-stock','badge-check'].forEach(id => {
+    document.getElementById(id).textContent = '...';
+  });
+}
+
+function renderCards(d) {
+  document.getElementById('card-market').textContent = d.market || '-';
+  document.getElementById('card-news').textContent   = d.news   || '-';
+  document.getElementById('card-stock').textContent  = d.stocks || '-';
+
+  document.getElementById('badge-market').textContent = '업데이트됨';
+  document.getElementById('badge-news').textContent   = '업데이트됨';
+  document.getElementById('badge-stock').textContent  = watchlist.length ? `${watchlist.length}개 종목` : '업데이트됨';
+
+  // Checklist
+  checkState = {};
+  const items = Array.isArray(d.checklist) ? d.checklist : [];
+  const checkEl = document.getElementById('card-check');
+  if (!items.length) { checkEl.innerHTML = '<div class="card-empty">항목 없음</div>'; return; }
+  checkEl.innerHTML = '';
+  items.forEach((txt, i) => {
+    const row = document.createElement('div');
+    row.className = 'chk-item';
+    row.id = `cr-${i}`;
+    row.innerHTML = `<input type="checkbox" id="c${i}" onchange="tickCheck(${i},this.checked)"><label for="c${i}">${esc(txt)}</label>`;
+    checkEl.appendChild(row);
+  });
+  updateCheckBadge(items.length);
+}
+
+function tickCheck(i, val) {
+  checkState[i] = val;
+  const row = document.getElementById(`cr-${i}`);
+  if (row) row.className = 'chk-item' + (val ? ' done' : '');
+  const total = document.querySelectorAll('#card-check .chk-item').length;
+  const done  = Object.values(checkState).filter(Boolean).length;
+  updateCheckBadge(total, done);
+}
+
+function updateCheckBadge(total, done = 0) {
+  document.getElementById('badge-check').textContent = `${done}/${total}`;
+}
+
+/* ── History ── */
+function saveHistory(record) {
+  const hist = JSON.parse(localStorage.getItem('brief_hist') || '[]');
+  hist.unshift(record);
+  if (hist.length > 30) hist.pop();
+  localStorage.setItem('brief_hist', JSON.stringify(hist));
+}
+
+function toggleHist() {
+  const list = document.getElementById('hist-list');
+  const arrow = document.getElementById('hist-arrow');
+  const open = !list.classList.contains('open');
+  if (open) { renderHist(); list.classList.add('open'); arrow.textContent = '▲'; }
+  else       { list.classList.remove('open'); arrow.textContent = '▼'; }
+}
+
+function renderHist() {
+  const hist = JSON.parse(localStorage.getItem('brief_hist') || '[]');
+  const list = document.getElementById('hist-list');
+  if (!hist.length) {
+    list.innerHTML = '<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">기록이 없어요</p>';
+    return;
+  }
+  list.innerHTML = hist.map((h, i) => `
+    <div class="hist-item">
+      <div class="hist-head" onclick="toggleHistBody(${i})">
+        <div>
+          <div class="hist-date">${esc(h.date)}</div>
+          <div class="hist-assets">${esc(h.assets || '')}</div>
+        </div>
+        <button class="hist-del" onclick="event.stopPropagation();delHist(${i})">삭제</button>
+      </div>
+      <div class="hist-body" id="hb-${i}">📊 시장 동향
+${esc(h.market||'')}
+
+📰 주요 뉴스
+${esc(h.news||'')}
+
+🎯 종목 분석
+${esc(h.stocks||'')}
+
+✅ 체크리스트
+${Array.isArray(h.checklist) ? h.checklist.map(c=>'· '+esc(c)).join('\n') : ''}</div>
+    </div>`).join('');
+}
+
+function toggleHistBody(i) {
+  const b = document.getElementById(`hb-${i}`);
+  b.style.display = b.style.display === 'block' ? 'none' : 'block';
+}
+
+function delHist(i) {
+  if (!confirm('이 브리핑 기록을 삭제할까요?')) return;
+  const hist = JSON.parse(localStorage.getItem('brief_hist') || '[]');
+  hist.splice(i, 1);
+  localStorage.setItem('brief_hist', JSON.stringify(hist));
+  renderHist();
+}
+
+/* ── Panel ── */
+function openPanel()  { document.getElementById('overlay').classList.add('open'); document.getElementById('panel').classList.add('open'); }
+function closePanel() { document.getElementById('overlay').classList.remove('open'); document.getElementById('panel').classList.remove('open'); }
+
+/* ── Notifications ── */
+async function reqNotif() {
+  if (!('Notification' in window)) { alert('이 브라우저는 알림을 지원하지 않아요.'); return; }
+  const p = await Notification.requestPermission();
+  refreshNotifLabel();
+  alert(p === 'granted' ? '알림이 허용됐어요!' : '알림이 차단됐어요. 브라우저 설정에서 허용해주세요.');
+}
+
+function refreshNotifLabel() {
+  if (!('Notification' in window)) return;
+  const lbl = document.getElementById('notif-lbl');
+  const p = Notification.permission;
+  lbl.textContent =
+    p === 'granted' ? '✅ 알림 허용됨' :
+    p === 'denied'  ? '❌ 차단됨 — 브라우저 설정에서 허용해주세요' :
+    '자동 생성 시 데스크탑 알림을 받을 수 있어요.';
+}
+
+function pushNotif(title, body) {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    new Notification(title, { body });
+  }
+}
+
+/* ── Banner ── */
+function showBanner(txt) {
+  document.getElementById('banner-txt').textContent = txt;
+  document.getElementById('banner').classList.add('show');
+}
+function closeBanner() { document.getElementById('banner').classList.remove('show'); }
+
+/* ── Utils ── */
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
