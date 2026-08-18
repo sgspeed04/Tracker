@@ -1,0 +1,40 @@
+name: 일일 투자 브리핑 (Notion 자동저장)
+
+on:
+  schedule:
+    - cron: '0 22 * * *'   # 매일 07:00 KST (UTC 22:00 전날)
+    - cron: '0 13 * * *'   # 매일 22:00 KST (UTC 13:00)
+  workflow_dispatch:          # 수동 실행 버튼
+
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 외부 의존성 없이 Node 내장 fetch만 사용하므로 npm install 불필요
+
+      - name: 브리핑 생성 & Notion 저장
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: node scripts/daily-briefing.js
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/daily_briefing.json
+          git diff --staged --quiet || git commit -m "chore: 일일 투자 브리핑 $(date +'%Y-%m-%d')"
+          git pull --rebase origin main
+          git push -u origin main

@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>make.com 투자 브리핑 자동화 설정 가이드</title>
+<style>
+:root {
+  --bg: #f7f6f2;
+  --white: #fff;
+  --border: #e8e5de;
+  --accent: #6c47ff;
+  --accent-dim: rgba(108,71,255,0.08);
+  --green: #1D9E75;
+  --warn: #f0a500;
+  --danger: #e24b4a;
+  --text: #1a1a1a;
+  --text2: #666;
+  --tag: #f0eeea;
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+.wrap { max-width: 780px; margin: 0 auto; padding: 32px 16px 64px; }
+
+/* Header */
+.hero { text-align: center; padding: 40px 20px 32px; }
+.hero h1 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+.hero p { font-size: 14px; color: var(--text2); }
+.badge-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.badge { background: var(--tag); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--text2); }
+
+/* Flow diagram */
+.flow-box { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; overflow-x: auto; }
+.flow-title { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 16px; }
+.flow { display: flex; align-items: center; gap: 0; min-width: max-content; }
+.node { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.node-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.node-label { font-size: 11px; color: var(--text2); text-align: center; max-width: 60px; }
+.arrow { font-size: 18px; color: #ccc; margin: 0 4px; padding-bottom: 20px; }
+.n-schedule { background: #e8f4fd; }
+.n-rss      { background: #fff3e0; }
+.n-claude   { background: #f3e8ff; }
+.n-parse    { background: #e8faf0; }
+.n-router   { background: #fef3e2; }
+.n-notion   { background: #f0f0f0; }
+.n-sheets   { background: #e8f5e9; }
+.n-slack    { background: #e8eeff; }
+.n-kakao    { background: #fff9c4; }
+
+.router-children { display: flex; flex-direction: column; gap: 8px; margin-left: 4px; }
+.router-branch { display: flex; align-items: center; gap: 4px; }
+
+/* Steps */
+.step-section { margin-bottom: 32px; }
+.step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.step-num { width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.step-title { font-size: 16px; font-weight: 600; }
+
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+.card-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.card-body { font-size: 13px; color: var(--text2); }
+.card-body ul { padding-left: 16px; }
+.card-body li { margin-bottom: 4px; }
+.card-body a { color: var(--accent); }
+
+/* Code block */
+.code-wrap { position: relative; margin: 10px 0; }
+.code-block { background: #1a1a2e; color: #a8c4e0; border-radius: 8px; padding: 14px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; white-space: pre-wrap; word-break: break-all; line-height: 1.6; overflow-x: auto; }
+.copy-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.1); border: none; border-radius: 5px; color: #aaa; font-size: 11px; padding: 4px 8px; cursor: pointer; }
+.copy-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+/* Tag / label */
+.tag { display: inline-block; background: var(--accent-dim); color: var(--accent); border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 600; }
+.tag-green { background: rgba(29,158,117,0.1); color: var(--green); }
+.tag-warn  { background: rgba(240,165,0,0.1);  color: var(--warn); }
+.tag-red   { background: rgba(226,75,74,0.1);  color: var(--danger); }
+
+/* Module config table */
+.module-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+.module-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--tag); }
+.module-icon { font-size: 18px; }
+.module-name { font-size: 14px; font-weight: 600; }
+.module-id { font-size: 11px; color: var(--text2); margin-left: auto; font-family: monospace; }
+.module-body { padding: 12px 16px; }
+.field-row { display: flex; gap: 8px; padding: 6px 0; border-top: 1px solid #f5f3ef; font-size: 13px; }
+.field-row:first-child { border-top: none; }
+.field-key { color: var(--text2); width: 130px; flex-shrink: 0; }
+.field-val { color: var(--text); word-break: break-all; }
+.field-val code { background: var(--tag); padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: monospace; }
+.placeholder { color: var(--danger); background: rgba(226,75,74,0.08); padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: monospace; }
+
+/* Schedule section */
+.sched-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 500px) { .sched-cards { grid-template-columns: 1fr; } }
+.sched-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+.sched-time { font-size: 26px; font-weight: 700; }
+.sched-label { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+/* Warning box */
+.warn-box { background: rgba(240,165,0,0.08); border: 1px solid rgba(240,165,0,0.3); border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #7a5500; margin: 12px 0; }
+.info-box { background: var(--accent-dim); border: 1px solid rgba(108,71,255,0.2); border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #3d2899; margin: 12px 0; }
+
+/* Download button */
+.dl-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: white; border: none; border-radius: 10px; padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; margin-top: 8px; }
+.dl-btn:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>📈 일일 투자 브리핑 자동화</h1>
+    <p>make.com 시나리오 설정 가이드 · Claude AI + 뉴스 RSS → Notion / Google Sheets / Slack / 카카오톡</p>
+    <div class="badge-row">
+      <span class="badge">오전 7:00 자동 실행</span>
+      <span class="badge">오후 10:00 자동 실행</span>
+      <span class="badge">Claude Haiku</span>
+      <span class="badge">make.com</span>
+    </div>
+  </div>
+
+  <!-- Flow diagram -->
+  <div class="flow-box">
+    <div class="flow-title">시나리오 흐름</div>
+    <div class="flow">
+      <div class="node"><div class="node-icon n-schedule">⏰</div><div class="node-label">스케줄 트리거</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="node-icon n-rss">📰</div><div class="node-label">뉴스 RSS</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="node-icon n-claude">🤖</div><div class="node-label">Claude API</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="node-icon n-parse">{ }</div><div class="node-label">JSON 파싱</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="node-icon n-router">⑂</div><div class="node-label">라우터</div></div>
+      <div class="arrow">→</div>
+      <div class="router-children">
+        <div class="router-branch"><div class="node"><div class="node-icon n-notion">N</div><div class="node-label">Notion</div></div></div>
+        <div class="router-branch"><div class="node"><div class="node-icon n-sheets">📊</div><div class="node-label">G.Sheets</div></div></div>
+        <div class="router-branch"><div class="node"><div class="node-icon n-slack">💬</div><div class="node-label">Slack</div></div></div>
+        <div class="router-branch"><div class="node"><div class="node-icon n-kakao">💛</div><div class="node-label">카카오톡</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 1: Import -->
+  <div class="step-section">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div class="step-title">Blueprint 가져오기</div>
+    </div>
+    <div class="card">
+      <div class="card-title">📥 make-blueprint.json 임포트</div>
+      <div class="card-body">
+        <ol style="padding-left:16px">
+          <li>make.com 로그인 → 왼쪽 사이드바 <strong>Scenarios</strong> 클릭</li>
+          <li>오른쪽 상단 <strong>Create a new scenario</strong> → 우하단 <strong>…</strong> 메뉴 → <strong>Import Blueprint</strong></li>
+          <li>아래 <code>make-blueprint.json</code> 파일을 드래그 앤 드롭</li>
+          <li>모듈이 불러와지면 각 모듈의 Connection과 빨간색 필드를 채우면 됩니다</li>
+        </ol>
+        <a class="dl-btn" href="make-blueprint.json" download>⬇ make-blueprint.json 다운로드</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Schedule -->
+  <div class="step-section">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div class="step-title">스케줄 설정 (오전 7시 / 오후 10시)</div>
+    </div>
+    <div class="info-box">
+      make.com에서 하나의 시나리오는 하나의 스케줄만 지원해요. 오전/오후 두 번 실행하려면 <strong>시나리오를 복제</strong>해서 각각 다른 시간으로 설정하세요.
+    </div>
+    <div class="sched-cards">
+      <div class="sched-card">
+        <div class="sched-time">07:00</div>
+        <div class="sched-label">☀️ 오전 브리핑<br><small style="color:#aaa">시나리오 A</small></div>
+      </div>
+      <div class="sched-card">
+        <div class="sched-time">22:00</div>
+        <div class="sched-label">🌙 오후 브리핑<br><small style="color:#aaa">시나리오 B (복제)</small></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-body">
+        <strong>설정 방법:</strong> 시나리오 하단 <strong>Scheduling</strong> 클릭 → <strong>At regular intervals</strong> 선택 →
+        <strong>Days</strong> 선택 → 시간 <code>07:00</code> 또는 <code>22:00</code> 입력 (Asia/Seoul 타임존 설정 필수)
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Modules -->
+  <div class="step-section">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div class="step-title">각 모듈 설정</div>
+    </div>
+
+    <!-- Module 1: RSS -->
+    <div class="module-card">
+      <div class="module-head">
+        <span class="module-icon">📰</span>
+        <span class="module-name">RSS 뉴스 피드</span>
+        <span class="module-id">rss:ActionTrigger</span>
+      </div>
+      <div class="module-body">
+        <div class="field-row">
+          <div class="field-key">Feed URL</div>
+          <div class="field-val"><code>https://www.hankyung.com/feed/all-news</code></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Maximum</div>
+          <div class="field-val"><code>5</code> (최신 5개 기사)</div>
+        </div>
+        <div class="warn-box" style="margin:8px 0 0">
+          RSS 뉴스가 5개 항목을 순차 실행하므로 뒤에 <strong>Text Aggregator</strong> 모듈을 연결해 하나의 텍스트로 합쳐야 해요.
+        </div>
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;font-size:13px;color:var(--accent)">추가 RSS 피드 소스 보기</summary>
+          <div style="margin-top:8px;font-size:12px;color:var(--text2)">
+            <div>• 연합뉴스: <code>https://www.yonhapnewstv.co.kr/category/news/economy/feed/</code></div>
+            <div>• 매일경제: <code>https://www.mk.co.kr/rss/30000001/</code></div>
+            <div>• Bloomberg KR: <code>https://feeds.bloomberg.com/markets/news.rss</code></div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- Module 2: Text Aggregator -->
+    <div class="module-card">
+      <div class="module-head">
+        <span class="module-icon">📝</span>
+        <span class="module-name">Text Aggregator (뉴스 취합)</span>
+        <span class="module-id">builtin:TextAggregator</span>
+      </div>
+      <div class="module-body">
+        <div class="field-row">
+          <div class="field-key">Source Module</div>
+          <div class="field-val">RSS 모듈 선택</div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Text</div>
+          <div class="field-val"><code>- {{title}}</code></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Row separator</div>
+          <div class="field-val"><code>\n</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module 3: Claude API -->
+    <div class="module-card">
+      <div class="module-head">
+        <span class="module-icon">🤖</span>
+        <span class="module-name">Claude API 호출</span>
+        <span class="module-id">http:ActionSendData (HTTP POST)</span>
+      </div>
+      <div class="module-body">
+        <div class="field-row">
+          <div class="field-key">URL</div>
+          <div class="field-val"><code>https://api.anthropic.com/v1/messages</code></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Method</div>
+          <div class="field-val"><code>POST</code></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Headers</div>
+          <div class="field-val">
+            <code>x-api-key</code>: <span class="placeholder">YOUR_CLAUDE_API_KEY</span><br>
+            <code>anthropic-version</code>: <code>2023-06-01</code><br>
+            <code>content-type</code>: <code>application/json</code>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Body (Raw JSON)</div>
+          <div class="field-val">아래 코드 블록 참고</div>
+        </div>
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="copyCode(this)">복사</button>
+          <div class="code-block">{
+  "model": "claude-haiku-4-5-20251001",
+  "max_tokens": 1500,
+  "messages": [{
+    "role": "user",
+    "content": "오늘: {{formatDate(now; \"YYYY년 MM월 DD일 dddd\")}}\n관심 종목: 삼성전자, SK하이닉스, TSLA, 비트코인\n\n최신 뉴스:\n{{3.text}}\n\n아래 JSON 형식으로만 응답 (다른 텍스트 없이):\n{\"market\":\"시장동향 3~4문장\",\"news\":\"뉴스 3~4개 (· 로 시작)\",\"stocks\":\"종목분석 (▸ 로 시작)\",\"checklist\":[\"액션1\",\"액션2\",\"액션3\",\"리스크체크\"]}"
+  }]
+}</div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Parse response</div>
+          <div class="field-val"><span class="tag tag-green">✓ 체크</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module 4: JSON Parse -->
+    <div class="module-card">
+      <div class="module-head">
+        <span class="module-icon">{ }</span>
+        <span class="module-name">JSON 파싱</span>
+        <span class="module-id">json:ParseJSON</span>
+      </div>
+      <div class="module-body">
+        <div class="field-row">
+          <div class="field-key">JSON string</div>
+          <div class="field-val"><code>{{4.data.content[1].text}}</code></div>
+        </div>
+        <div class="warn-box">
+          Claude가 JSON을 반환하지 않으면 오류가 날 수 있어요. Error Handler 모듈을 연결해 재시도 처리를 추가하는 걸 권장해요.
+        </div>
+      </div>
+    </div>
+
+    <!-- Module 5: Notion -->
+    <div class="module-card">
+      <div class="module-head">
+        <span class="module-icon">N</span>
+        <span class="module-name">Notion 페이지 생성</span>
+        <span class="module-id">notion:CreateDatabaseItem</span>
+      </div>
+      <div class="module-body">
+        <div class="field-row">
+          <div class="field-key">Connection</div>
+          <div class="field-val"><span class="placeholder">Notion 계정 연결 필요</span></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Database</div>
+          <div class="field-val"><span class="placeholder">브리핑 기록 DB 선택</span></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">이름 (Title)</div>
+          <div class="field-val"><code>📈 투자 브리핑 {{formatDate(now; "MM/DD")}}</code></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">콘텐츠 블록</div>
+          <div class="field-val">
+            H2: 시장 동향 → <code>{{5.market}}</code><br>
+            H2: 주요 뉴스 → <code>{{5.news}}</code><br>
+            H2: 종목 분석 → <code>{{5.stocks}}</code><br>
+            체크박스: <code>{{5.checklist[]}}</code>
+          </div>
+        </div>
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;font-size:13px;color:var(--accent)">Notion DB 컬럼 권장 구성 보기</summary>
+          <div style="margin-top:8px">
+            <table style="width:100%;font-size:12px;border-collapse:collapse">
+              <tr style="background:var(--tag)"><th style="padding:6px;text-align:left">컬럼명</th><th style="padding:6px;text-align:left">타입</th></tr>
+              <tr><td style="padding:6px;border-top:1px solid var(--border)">이름</td><td style="padding:6px;border-top:1px solid var(--border)">Title</td></tr>
+              <tr><td style="padding:6px;border-top:1px solid var(--border)">날짜</td><td style="padding:6px;border-top:1px solid var(--border)">Date</td></tr>
+              <tr><td style="padding:6px;border-top:1px solid var(--border)">시간대</td><td style="padding:6px;border-top:1px solid var(--border)">Select (오전/오후)</td></tr>
+              <tr><td style="padding:6px;border-top:1px solid var(--border)">관심종목</td><td style="padding:6px;border-top:1px solid var(--border)">Text</td></tr>
+            </table>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- Module 6: Google Sheets -->
+    <div class="module-card">
+      <div class="module-head">
+        <span class="module-icon">📊</span>
+        <span class="module-name">Google Sheets 행 추가</span>
+        <span class="module-id">google-sheets:ActionAddRowV2</span>
+      </div>
+      <div class="module-body">
+        <div class="field-row">
+          <div class="field-key">Connection</div>
+          <div class="field-val"><span class="placeholder">Google 계정 연결 필요</span></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Spreadsheet</div>
+          <div class="field-val"><span class="placeholder">투자 브리핑 시트 선택</span></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Sheet</div>
+          <div class="field-val"><code>브리핑</code></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">컬럼 매핑</div>
+          <div class="field-val">
+            A 날짜: <code>{{formatDate(now; "YYYY-MM-DD HH:mm")}}</code><br>
+            B 시장동향: <code>{{5.market}}</code><br>
+            C 주요뉴스: <code>{{5.news}}</code><br>
+            D 종목분석: <code>{{5.stocks}}</code><br>
+            E 체크리스트: <code>{{join(5.checklist; " | ")}}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module 7: Slack -->
+    <div class="module-card">
+      <div class="module-head">
+        <span class="module-icon">💬</span>
+        <span class="module-name">Slack 메시지</span>
+        <span class="module-id">slack:ActionCreateMessage</span>
+      </div>
+      <div class="module-body">
+        <div class="field-row">
+          <div class="field-key">Connection</div>
+          <div class="field-val"><span class="placeholder">Slack 워크스페이스 연결</span></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Channel</div>
+          <div class="field-val"><span class="placeholder">#투자-브리핑 채널</span></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">메시지 (Blocks)</div>
+          <div class="field-val">아래 코드 참고</div>
+        </div>
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="copyCode(this)">복사</button>
+          <div class="code-block">📈 *일일 투자 브리핑* — {{formatDate(now; "MM/DD (ddd)")}}
+
+📊 *시장 동향*
+{{5.market}}
+
+📰 *주요 뉴스*
+{{5.news}}
+
+🎯 *종목 분석*
+{{5.stocks}}
+
+✅ *체크리스트*
+· {{join(5.checklist; "\n· ")}}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module 8: KakaoTalk -->
+    <div class="module-card">
+      <div class="module-head">
+        <span class="module-icon">💛</span>
+        <span class="module-name">카카오톡 (나에게 보내기)</span>
+        <span class="module-id">http:ActionSendData (HTTP POST)</span>
+      </div>
+      <div class="module-body">
+        <div class="warn-box">
+          make.com에 카카오톡 네이티브 모듈이 없어서 <strong>HTTP 모듈 + 카카오 API</strong>를 사용해요. 카카오 Developers에서 앱 등록 및 토큰 발급이 필요해요.
+        </div>
+        <div class="field-row">
+          <div class="field-key">URL</div>
+          <div class="field-val"><code>https://kapi.kakao.com/v2/api/talk/memo/default/send</code></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Method</div>
+          <div class="field-val"><code>POST</code></div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Headers</div>
+          <div class="field-val">
+            <code>Authorization</code>: <code>Bearer </code><span class="placeholder">KAKAO_ACCESS_TOKEN</span><br>
+            <code>Content-Type</code>: <code>application/x-www-form-urlencoded</code>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-key">Body</div>
+          <div class="field-val">아래 코드 참고</div>
+        </div>
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="copyCode(this)">복사</button>
+          <div class="code-block">template_object={"object_type":"text","text":"📈 투자 브리핑 {{formatDate(now; \"MM/DD\")}}\n\n📊 시장 동향\n{{5.market}}\n\n📰 뉴스\n{{5.news}}\n\n🎯 종목\n{{5.stocks}}\n\n✅ 체크리스트\n· {{join(5.checklist; \"\n· \")}}","link":{"web_url":"https://www.google.com"}}</div>
+        </div>
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;font-size:13px;color:var(--accent)">카카오 액세스 토큰 발급 방법</summary>
+          <div style="margin-top:8px;font-size:13px;color:var(--text2)">
+            <ol style="padding-left:16px">
+              <li><a href="https://developers.kakao.com" target="_blank">developers.kakao.com</a> → 내 애플리케이션 → 앱 만들기</li>
+              <li>카카오 로그인 활성화 → 동의항목에서 <strong>카카오톡 메시지 전송</strong> 추가</li>
+              <li><a href="https://developers.kakao.com/tool/rest-api/open/post/v2-api-talk-memo-default-send" target="_blank">카카오 API 도구</a>에서 액세스 토큰 발급</li>
+              <li>발급된 토큰은 12시간마다 갱신 필요 (make.com에서 자동 갱신 설정 가능)</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: API Keys -->
+  <div class="step-section">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <div class="step-title">필요한 API 키 / 토큰 정리</div>
+    </div>
+    <div class="card">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--tag)">
+            <th style="padding:10px;text-align:left">서비스</th>
+            <th style="padding:10px;text-align:left">필요한 것</th>
+            <th style="padding:10px;text-align:left">발급 URL</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px">🤖 Claude</td>
+            <td style="padding:10px">API Key (<code>sk-ant-...</code>)</td>
+            <td style="padding:10px"><a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></td>
+          </tr>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px">N Notion</td>
+            <td style="padding:10px">make.com OAuth 연결</td>
+            <td style="padding:10px">make.com 내 Connections에서 추가</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px">📊 Google</td>
+            <td style="padding:10px">make.com OAuth 연결</td>
+            <td style="padding:10px">make.com 내 Connections에서 추가</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px">💬 Slack</td>
+            <td style="padding:10px">make.com OAuth 연결</td>
+            <td style="padding:10px">make.com 내 Connections에서 추가</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px">💛 카카오</td>
+            <td style="padding:10px">액세스 토큰</td>
+            <td style="padding:10px"><a href="https://developers.kakao.com" target="_blank">developers.kakao.com</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Step 5: Test -->
+  <div class="step-section">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <div class="step-title">테스트 실행</div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <ol style="padding-left:16px">
+          <li style="margin-bottom:8px">시나리오 오른쪽 상단 <strong>Run once</strong> 버튼 클릭</li>
+          <li style="margin-bottom:8px">각 모듈의 실행 결과 확인 (초록 체크 = 성공, 빨간 X = 오류)</li>
+          <li style="margin-bottom:8px">Claude 응답이 JSON인지 확인: 모듈 클릭 → <strong>Output</strong>에서 <code>market</code>, <code>news</code>, <code>stocks</code>, <code>checklist</code> 확인</li>
+          <li>Notion, Slack, 카카오톡에 메시지가 도착했는지 확인</li>
+        </ol>
+      </div>
+    </div>
+    <div class="info-box">
+      💡 테스트가 성공하면 시나리오 하단 <strong>Scheduling</strong>에서 스케줄을 활성화하고 <strong>Save</strong>하세요.
+    </div>
+  </div>
+
+  <div style="text-align:center;font-size:13px;color:var(--text2);margin-top:32px">
+    📁 파일: <code>DailyBriefing/make-blueprint.json</code> · <code>DailyBriefing/setup.html</code>
+  </div>
+</div>
+
+<script>
+function copyCode(btn) {
+  const code = btn.nextElementSibling.textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = '복사됨!';
+    setTimeout(() => btn.textContent = '복사', 1500);
+  });
+}
+</script>
+</body>
+</html>
