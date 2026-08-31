@@ -21,10 +21,10 @@ jobs:
           node-version: '20'
           # 외부 의존성 없음 — Node 내장 fetch 만 사용하므로 npm install 생략
 
-      - name: 수식 자체검증 (합성 데이터 46종)
+      - name: 수식 자체검증 (합성 데이터 58종)
         run: node scripts/test-stocks-math.js
 
-      - name: 파이프라인 엔드투엔드 검증 (가짜 API 응답 32종)
+      - name: 파이프라인 엔드투엔드 검증 (가짜 API 응답 42종)
         run: node scripts/test-stocks-e2e.js
 
       - name: 주가·매크로 수집 및 이론 검증

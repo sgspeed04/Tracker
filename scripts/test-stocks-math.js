@@ -182,5 +182,44 @@ console.log('\n[13] 유니버스 무결성');
   ok(M.STRATEGY_DEFS.length===7, `전략 7개 (실제 ${M.STRATEGY_DEFS.length})`);
 }
 
+console.log('\n[14] parseNaverSise — 네이버 유사 JSON 응답 파싱');
+{
+  // 실제 응답 형태: 작은따옴표 + 헤더 행 + 들여쓰기
+  const raw = `[['날짜', '시가', '고가', '저가', '종가', '거래량', '외국인소진율'],
+['20240103', 78200, 78500, 77000, 77000, 21753644, 54.11],
+['20240102', 79600, 79800, 78200, 79600, 17142683, 54.14]]`;
+  const r = M.parseNaverSise(raw);
+  ok(r.length===2, `헤더 행 제외하고 2건 (실제 ${r.length})`);
+  ok(r[0].d==='2024-01-02', `날짜를 YYYY-MM-DD 로 변환 (실제 ${r[0].d})`);
+  ok(r[0].c===79600, `종가는 5번째 칸 (실제 ${r[0].c})`);
+  ok(r[1].d==='2024-01-03', '날짜 오름차순 정렬');
+}
+
+console.log('\n[15] parseNaverSise — 깨진 행·이상값은 건너뛰기');
+{
+  const raw = `[['날짜','시가','고가','저가','종가'],
+['20240102', 100, 110, 90, 105],
+['20240103', 100],
+['badrow', 1, 2, 3, 4],
+['20240104', 100, 110, 90, 0],
+['20240105', 100, 110, 90, ''],
+["20240106", 100, 110, 90, 108]]`;
+  const r = M.parseNaverSise(raw);
+  ok(r.length===2, `유효 행만 2건 남음 (실제 ${r.length}: ${r.map(x=>x.d).join(',')})`);
+  ok(r[1].c===108, '큰따옴표 표기도 파싱됨');
+  let threw = false;
+  try { M.parseNaverSise('[]'); } catch (e) { threw = true; }
+  ok(threw, '시세 행이 하나도 없으면 예외를 던짐');
+}
+
+console.log('\n[16] 한국 종목 판별 — 네이버 폴백 대상');
+{
+  ok(M.isKoreanTicker('005930.KS')===true, '코스피 종목 인식');
+  ok(M.isKoreanTicker('277810.KQ')===true, '코스닥 종목 인식');
+  ok(M.isKoreanTicker('^KS11')===true, '코스피 지수 인식');
+  ok(M.isKoreanTicker('NVDA')===false, '미국 종목은 제외');
+  ok(M.isKoreanTicker('^GSPC')===false, 'S&P500 지수는 제외');
+}
+
 console.log(`\n${'─'.repeat(46)}\n결과: ${pass} 통과 / ${fail} 실패\n`);
 process.exit(fail ? 1 : 0);

@@ -82,32 +82,67 @@ for (const u of M.UNIVERSE) makePrice(u.t, u.theme, 0.0004 + 0.0002 * (3 - u.ran
 for (const b of M.BENCHMARKS) makePrice(b.t, '__none__', 0.0003);
 
 /* ── 가짜 fetch ── */
-let calls = { yahoo: 0, fred: 0, stooq: 0 };
-globalThis.fetch = async (url) => {
-  const u = String(url);
-  if (u.includes('fredgraph.csv')) {
-    calls.fred++;
-    const id = u.match(/id=([A-Z0-9]+)/)[1];
-    const p = factorPaths[id];
-    if (!p) return { ok: false, status: 404, text: async () => '' };
-    // 실제 FRED 처럼 결측치를 '.' 으로 섞는다
-    const lines = ['observation_date,' + id];
-    for (let i = 0; i < N; i++) lines.push(`${days[i]},${i % 37 === 5 ? '.' : p[i].toFixed(4)}`);
-    return { ok: true, status: 200, text: async () => lines.join('\n') };
+let calls = { yahoo: 0, fred: 0, stooq: 0, naver: 0 };
+
+/** 네이버 siseJson 응답 형태로 직렬화 (작은따옴표 유사 JSON) */
+function naverBody(arr) {
+  const rows = ["['날짜', '시가', '고가', '저가', '종가', '거래량', '외국인소진율']"];
+  for (let i = 0; i < arr.length; i++) {
+    const c = arr[i], d = days[i].replace(/-/g, '');
+    rows.push(`['${d}', ${(c*0.99).toFixed(0)}, ${(c*1.01).toFixed(0)}, ${(c*0.98).toFixed(0)}, ${c.toFixed(0)}, 1234567, 50.1]`);
   }
-  if (u.includes('query1.finance.yahoo.com')) {
-    calls.yahoo++;
-    const tk = decodeURIComponent(u.split('/chart/')[1].split('?')[0]);
-    const arr = prices[tk];
-    if (!arr) return { ok: false, status: 404, text: async () => '' };
-    const ts = days.map(d => Date.parse(d + 'T00:00:00Z') / 1000);
-    return { ok: true, status: 200, text: async () => JSON.stringify({
-      chart: { result: [{ timestamp: ts,
-        indicators: { quote: [{ close: arr }], adjclose: [{ adjclose: arr }] } }] } }) };
-  }
-  calls.stooq++;
-  return { ok: false, status: 403, text: async () => '' };
-};
+  return '[' + rows.join(',\n') + ']';
+}
+
+/**
+ * @param {{blockYahooKR?: boolean}} opts
+ *   blockYahooKR: Yahoo 가 한국 종목만 막는 상황(러너 IP 차단)을 흉내낸다
+ */
+function installFetch(opts = {}) {
+  calls = { yahoo: 0, fred: 0, stooq: 0, naver: 0 };
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+
+    if (u.includes('fredgraph.csv')) {
+      calls.fred++;
+      const id = u.match(/id=([A-Z0-9]+)/)[1];
+      const p = factorPaths[id];
+      if (!p) return { ok: false, status: 404, text: async () => '' };
+      // 실제 FRED 처럼 결측치를 '.' 으로 섞는다
+      const lines = ['observation_date,' + id];
+      for (let i = 0; i < N; i++) lines.push(`${days[i]},${i % 37 === 5 ? '.' : p[i].toFixed(4)}`);
+      return { ok: true, status: 200, text: async () => lines.join('\n') };
+    }
+
+    if (u.includes('api.finance.naver.com')) {
+      calls.naver++;
+      const code = u.match(/symbol=([A-Z0-9]+)/i)[1];
+      // 네이버는 6자리 코드만 쓰므로 유니버스에서 접미어를 떼고 찾는다
+      const tk = Object.keys(prices).find((t) => t.replace(/\.(KS|KQ)$/i, '') === code)
+              || (code === 'KOSPI' ? '^KS11' : null);
+      if (!tk || !prices[tk]) return { ok: false, status: 404, text: async () => '' };
+      return { ok: true, status: 200, text: async () => naverBody(prices[tk]) };
+    }
+
+    if (u.includes('query1.finance.yahoo.com')) {
+      calls.yahoo++;
+      const tk = decodeURIComponent(u.split('/chart/')[1].split('?')[0]);
+      if (opts.blockYahooKR && /\.(KS|KQ)$|\^KS11/.test(tk)) {
+        return { ok: false, status: 403, text: async () => 'Forbidden' };
+      }
+      const arr = prices[tk];
+      if (!arr) return { ok: false, status: 404, text: async () => '' };
+      const ts = days.map(d => Date.parse(d + 'T00:00:00Z') / 1000);
+      return { ok: true, status: 200, text: async () => JSON.stringify({
+        chart: { result: [{ timestamp: ts,
+          indicators: { quote: [{ close: arr }], adjclose: [{ adjclose: arr }] } }] } }) };
+    }
+
+    calls.stooq++;
+    return { ok: false, status: 403, text: async () => '' };
+  };
+}
+installFetch();
 
 /* ── 실행 ── */
 (async () => {
@@ -180,6 +215,29 @@ globalThis.fetch = async (url) => {
   console.log('  전체 꼴찌 이론: ' + D.overall_rank.worst.map(r=>`${r.theory}(${r.score})`).join(', '));
   console.log('  전략 샤프 순: ' + D.strategy_rank.slice(0,3).map(s=>`${s.name}(${s.sharpe})`).join(', '));
   console.log('  JSON 크기: ' + (fs.statSync(M.OUT_PATH).size/1024).toFixed(0) + ' KB');
+
+  console.log('\n[H] Yahoo 가 한국 종목을 막았을 때 네이버로 폴백하는가');
+  {
+    installFetch({ blockYahooKR: true });
+    await M.main();
+    const F = JSON.parse(fs.readFileSync(M.OUT_PATH, 'utf8'));
+    const kr = F.stocks.filter(s => s.market === 'KR');
+    const us = F.stocks.filter(s => s.market === 'US');
+    ok(F.stocks.length === 30, `폴백 후에도 30종목 전부 확보 (실제 ${F.stocks.length})`);
+    ok(kr.every(s => s.source === 'naver'), `한국 ${kr.length}종목이 네이버로 전환`);
+    ok(us.every(s => s.source === 'yahoo'), `미국 ${us.length}종목은 Yahoo 유지`);
+    ok(calls.naver >= 16, `네이버 호출 발생 (${calls.naver}회 — 종목 15 + 코스피 지수)`);
+    ok(F.source_summary.naver === 16, `소스 집계에 네이버 16건 기록 (실제 ${F.source_summary.naver})`);
+    ok(F.warnings.length === 0, `폴백이 성공했으므로 경고 없음 (실제 ${F.warnings.length})`);
+    ok(kr.every(s => s.days > 1200), '네이버 경로도 1200일+ 확보');
+    ok(kr.every(s => s.fits.length >= 8), '네이버 데이터로도 이론 검증이 정상 수행됨');
+    ok(F.benchmarks.find(b => b.ticker === '^KS11')?.last > 0, '코스피 지수도 네이버로 복구');
+    // 같은 원본 가격에서 나온 값이므로 Yahoo 경로와 결과가 일치해야 한다
+    const a = D.stocks.find(s => s.ticker === '005930.KS');
+    const b = kr.find(s => s.ticker === '005930.KS');
+    ok(Math.abs(a.last - b.last) / a.last < 0.01,
+       `같은 원본이면 Yahoo/네이버 결과가 일치 (${a.last} vs ${b.last})`);
+  }
 
   console.log(`\n${'─'.repeat(60)}\n결과: ${pass} 통과 / ${fail} 실패\n`);
   process.exit(fail ? 1 : 0);

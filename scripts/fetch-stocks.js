@@ -209,10 +209,12 @@ async function fetchYahoo(ticker) {
   return out;
 }
 
-/** Stooq CSV 폴백 (미국 종목만 커버가 안정적) */
+/** Stooq CSV 폴백 (미국 종목) */
+const STOOQ_INDEX = { '^GSPC': '^spx' };   // stooq 는 지수 티커 체계가 달라 별도 매핑
 async function fetchStooq(ticker) {
-  const sym = ticker.replace(/^\^/, '').toLowerCase() + '.us';
-  const csv = await getText(`https://stooq.com/q/d/l/?s=${sym}&i=d`);
+  const sym = STOOQ_INDEX[ticker] || (ticker.startsWith('^') ? null : ticker.toLowerCase() + '.us');
+  if (!sym) throw new Error('stooq 심볼 매핑 없음: ' + ticker);
+  const csv = await getText(`https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`);
   const lines = csv.trim().split('\n');
   if (lines.length < 50 || !/^Date/i.test(lines[0])) throw new Error('stooq CSV 형식 이상');
   const cut = new Date(Date.now() - YEARS * 365.25 * 864e5).toISOString().slice(0, 10);
@@ -226,23 +228,65 @@ async function fetchStooq(ticker) {
   return out;
 }
 
-async function fetchPrices(ticker) {
-  try {
-    const s = await fetchYahoo(ticker);
-    if (s.length >= 120) return { series: s, source: 'yahoo' };
-    throw new Error('데이터 부족(' + s.length + '일)');
-  } catch (e1) {
-    if (/^\d/.test(ticker)) { // 한국 종목: stooq 커버리지 불안정 → 폴백 안 함
-      throw new Error(`yahoo 실패: ${e1.message}`);
-    }
-    try {
-      const s = await fetchStooq(ticker);
-      if (s.length >= 120) return { series: s, source: 'stooq' };
-      throw new Error('데이터 부족(' + s.length + '일)');
-    } catch (e2) {
-      throw new Error(`yahoo: ${e1.message} / stooq: ${e2.message}`);
-    }
+/* ── 네이버 금융 폴백 (한국 종목) ──
+ * Yahoo 가 러너 IP를 막을 경우를 대비한 국내 소스.
+ * 주의: 네이버 시세는 액면분할·유상증자는 반영된 수정주가지만 **배당은 반영하지 않는다**
+ *   (Yahoo adjclose 는 배당까지 반영). 국내 배당수익률(연 2% 안팎)만큼
+ *   장기 수익률이 과소평가되므로, 폴백이 쓰였는지 결과 JSON의 source 로 노출한다.
+ */
+const NAVER_INDEX = { '^KS11': 'KOSPI', '^KQ11': 'KOSDAQ' };
+const isKoreanTicker = (t) => /\.(KS|KQ)$/i.test(t) || t in NAVER_INDEX;
+
+async function fetchNaver(ticker) {
+  const sym = NAVER_INDEX[ticker] || ticker.replace(/\.(KS|KQ)$/i, '');
+  if (!/^[A-Z0-9]{5,6}$/i.test(sym)) throw new Error('네이버 종목코드 변환 실패: ' + ticker);
+  const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
+  const url = `https://api.finance.naver.com/siseJson.naver?symbol=${sym}`
+    + `&requestType=1&startTime=${ymd(new Date(Date.now() - YEARS * 365.25 * 864e5))}`
+    + `&endTime=${ymd(new Date())}&timeframe=day`;
+  return parseNaverSise(await getText(url, { headers: { Referer: 'https://finance.naver.com/' } }));
+}
+
+/**
+ * 네이버 siseJson 응답 파서.
+ * 응답이 작은따옴표를 쓰는 유사 JSON 이라 JSON.parse 가 통하지 않는다:
+ *   [['날짜','시가','고가','저가','종가','거래량','외국인소진율'],
+ *    ['20200102', 55700, 56400, 55600, 55200, 12993228, 55.77], ...]
+ * 따옴표를 치환하는 대신 행 단위로 훑어 날짜·종가만 뽑는다(형식이 조금 변해도 견디도록).
+ */
+function parseNaverSise(raw) {
+  const out = [];
+  const rowRe = /\[([^\[\]]*)\]/g;
+  let m;
+  while ((m = rowRe.exec(raw)) !== null) {
+    const cells = m[1].split(',').map((c) => c.trim().replace(/^['"]|['"]$/g, ''));
+    if (cells.length < 5) continue;
+    if (!/^\d{8}$/.test(cells[0])) continue;          // 헤더 행은 날짜가 아니므로 걸러짐
+    const c = parseFloat(cells[4]);                    // 종가
+    if (!Number.isFinite(c) || c <= 0) continue;
+    out.push({ d: `${cells[0].slice(0, 4)}-${cells[0].slice(4, 6)}-${cells[0].slice(6, 8)}`, c });
   }
+  if (!out.length) throw new Error('네이버 응답에서 시세 행을 못 찾음');
+  out.sort((a, b) => a.d.localeCompare(b.d));
+  return out;
+}
+
+/** Yahoo → (한국) 네이버 / (미국) Stooq 순으로 시도 */
+async function fetchPrices(ticker) {
+  const errs = [];
+  const attempt = async (label, fn) => {
+    try {
+      const s = await fn(ticker);
+      if (s.length >= 120) return { series: s, source: label };
+      throw new Error(`데이터 부족(${s.length}일)`);
+    } catch (e) {
+      errs.push(`${label}: ${e.message}`);
+      return null;
+    }
+  };
+  return (await attempt('yahoo', fetchYahoo))
+    || (isKoreanTicker(ticker) ? await attempt('naver', fetchNaver) : await attempt('stooq', fetchStooq))
+    || (() => { throw new Error(errs.join(' / ')); })();
 }
 
 /** FRED fredgraph.csv (API 키 불필요) → [{d, c}] */
@@ -674,6 +718,10 @@ async function main() {
     };
   }).filter(Boolean);
 
+  // 어떤 소스가 쓰였는지 집계 — 폴백이 돌면 데이터 성격이 달라지므로 화면에 노출한다
+  const sourceSummary = {};
+  for (const p of priced) sourceSummary[p.source] = (sourceSummary[p.source] || 0) + 1;
+
   const payload = {
     updated_at: new Date().toISOString(),
     as_of: allDates.length ? allDates[allDates.length - 1] : null,
@@ -682,7 +730,10 @@ async function main() {
       regression: `주간(금~금) 로그수익률을 매크로 인자 변화에 단순회귀. 최근 ${REG_WEEKS}주(3년), 최소 ${MIN_WEEKS}주 필요.`,
       score: '점수 = 0.45×유의성(|t|/3) + 0.25×설명력(R²/12%) + 0.30×방향적중률((hit−50%)/15%). 이론이 예측한 부호와 반대면 ×0.2 감점.',
       backtest: `일별 종가, 최근 ${YEARS}년. 전일 신호로 당일 보유(룩어헤드 방지). 거래비용·세금 미반영.`,
+      sources: 'Yahoo Finance(배당·분할 보정 종가) 우선, 실패 시 한국 종목은 네이버 금융 · 미국 종목은 Stooq 로 폴백.',
+      naver_caveat: '네이버 시세는 액면분할은 반영하지만 배당은 반영하지 않습니다. 네이버로 폴백된 종목은 배당수익률(국내 연 2% 안팎)만큼 장기 수익률이 실제보다 낮게 잡힙니다.',
     },
+    source_summary: sourceSummary,
     theories: THEORIES.map((t) => ({
       key: t.key, name: t.name, academic: t.academic, series: t.series,
       expect: t.expect, scope: t.scope, short: t.short, kid: t.kid,
@@ -727,4 +778,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, ols, trailingPct, toWeekly, testTheory, evaluate, buildWeights, fitScore, rsi14, sma, forwardFill, fetchFred, fetchYahoo, THEORIES, STRATEGY_DEFS, UNIVERSE, BENCHMARKS, OUT_PATH };
+module.exports = { main, ols, trailingPct, parseNaverSise, fetchNaver, fetchPrices, isKoreanTicker, toWeekly, testTheory, evaluate, buildWeights, fitScore, rsi14, sma, forwardFill, fetchFred, fetchYahoo, THEORIES, STRATEGY_DEFS, UNIVERSE, BENCHMARKS, OUT_PATH };

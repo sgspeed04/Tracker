@@ -212,6 +212,11 @@ function render() {
   const w = [];
   if (D.last_error) w.push('마지막 수집이 실패해 이전 데이터를 그대로 보여주고 있습니다: ' + esc(D.last_error));
   if (D.warnings?.length) w.push('수집 경고 ' + D.warnings.length + '건: ' + D.warnings.slice(0,4).map(esc).join(' / ') + (D.warnings.length>4?' 외…':''));
+  const ss = D.source_summary || {};
+  const fb = Object.entries(ss).filter(([k]) => k !== 'yahoo');
+  if (fb.length) w.push('Yahoo 대신 폴백 소스를 쓴 종목이 있습니다 (' +
+    fb.map(([k, v]) => esc(k) + ' ' + v + '종목').join(', ') + ').' +
+    (ss.naver ? ' 네이버 시세는 배당을 반영하지 않아 해당 종목의 장기 수익률이 실제보다 낮게 잡힙니다.' : ''));
   document.getElementById('warnBox').innerHTML = w.length ? `<div class="warn">⚠️ ${w.join('<br>')}</div>` : '';
 
   renderDash(); renderTheory(); renderStocks(); renderStrategy(); renderGlossary(); renderMethod();
@@ -626,7 +631,9 @@ function renderMethod() {
         <dt>회귀분석</dt><dd>${esc(D.method?.regression || '')}</dd>
         <dt>적합도 점수</dt><dd>${esc(D.method?.score || '')}</dd>
         <dt>백테스트</dt><dd>${esc(D.method?.backtest || '')}</dd>
-        <dt>주가 출처</dt><dd>Yahoo Finance (실패 시 Stooq 폴백, 배당·분할 보정 종가)</dd>
+        <dt>주가 출처</dt><dd>${esc(D.method?.sources || '')}</dd>
+        <dt>폴백 주의</dt><dd>${esc(D.method?.naver_caveat || '')}</dd>
+        <dt>이번 수집</dt><dd>${Object.entries(D.source_summary || {}).map(([k, v]) => esc(k) + ' ' + v + '종목').join(' · ') || '—'}</dd>
         <dt>매크로 출처</dt><dd>FRED (미 세인트루이스 연준) — API 키 없이 CSV 공개 배포</dd>
         <dt>갱신 주기</dt><dd>매일 06:30 KST · GitHub Actions <code>update-stocks.yml</code></dd>
       </div>
