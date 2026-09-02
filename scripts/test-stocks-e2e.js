@@ -305,6 +305,30 @@ installFetch();
     ok(mf.exposure > 0, `금리차 없이도 보유비중이 0이 아님 (실제 ${mf.exposure}%)`);
     ok(!!mf.degraded, `축소 계산 사실이 표기됨 ("${mf.degraded}")`);
     ok(P.stocks.every(s => s.strategies.macro), '전 종목에 매크로 필터 결과 존재');
+
+    // 이론이 4개뿐일 때 상위3/하위3 을 뽑으면 서로 겹친다 (실제 결과에서 발견)
+    const bk = P.overall_rank.best.map(r => r.theory);
+    const wk = P.overall_rank.worst.map(r => r.theory);
+    ok(bk.every(k => !wk.includes(k)),
+       `잘 맞는 이론과 안 맞는 이론이 겹치지 않음 (best ${bk.join(',')} / worst ${wk.join(',')})`);
+    ok(bk.length + wk.length <= P.overall_rank.all.length, '둘의 합이 전체 이론 수를 넘지 않음');
+    ok(P.missing_theories.length === 5, `빠진 이론 5개가 구조화되어 전달됨 (실제 ${P.missing_theories.length})`);
+    ok(P.missing_theories.every(t => t.key && t.name && t.series), '빠진 이론에 이름·지표 정보 포함');
+    ok(P.fred_key_used === false, 'FRED 키 사용 여부가 기록됨');
+  }
+
+  console.log('\n[K] 이론이 충분할 때는 상위/하위 3개씩 정상 산출');
+  {
+    for (const k of Object.keys(M.sourceHealth)) delete M.sourceHealth[k];
+    installFetch();
+    await M.main();
+    const Q = JSON.parse(fs.readFileSync(M.OUT_PATH, 'utf8'));
+    ok(Q.overall_rank.best.length === 3 && Q.overall_rank.worst.length === 3,
+       '이론 9개면 상위3/하위3');
+    const bk2 = Q.overall_rank.best.map(r => r.theory);
+    const wk2 = Q.overall_rank.worst.map(r => r.theory);
+    ok(bk2.every(k => !wk2.includes(k)), '이때도 겹치지 않음');
+    ok(Q.missing_theories.length === 0, '빠진 이론 없음');
   }
 
   console.log(`\n${'─'.repeat(60)}\n결과: ${pass} 통과 / ${fail} 실패\n`);

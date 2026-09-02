@@ -673,9 +673,11 @@ async function main() {
     await sleep(250);
   }
   const missing = seriesIds.filter((id) => !factors[id]);
+  const missingTheories = THEORIES.filter((t) => missing.includes(t.series))
+    .map((t) => ({ key: t.key, name: t.name, series: t.series }));
   if (missing.length) {
-    warn(`대체 지표가 없어 검증 불가한 이론: ${THEORIES.filter((t) => missing.includes(t.series))
-      .map((t) => t.name).join(', ')} (FRED_API_KEY 를 등록하면 복구됩니다)`);
+    warn(`대체 지표가 없어 검증 불가한 이론: ${missingTheories.map((t) => t.name).join(', ')}`
+      + ' (FRED_API_KEY 를 등록하면 복구됩니다)');
   }
 
   // 매크로 인자가 하나도 없으면 이론 검증이 불가능하다 — 빈 결과를 쓰느니 실패시켜
@@ -788,7 +790,13 @@ async function main() {
         agree_pct: round((a.agreeN / a.n) * 100, 1),
       }))
       .sort((x, y) => y.score - x.score);
-    return { best: arr.slice(0, 3), worst: arr.slice(-3).reverse(), all: arr };
+    // 검증된 이론이 6개 미만이면 상위 3 / 하위 3 이 서로 겹친다
+    // (실제로 FRED 차단 시 이론이 4개만 남아 달러·원화가 양쪽에 동시에 나왔다).
+    // 겹치지 않게 절반을 기준으로 자른다.
+    const half = Math.floor(arr.length / 2);
+    const best = arr.slice(0, Math.min(3, half || arr.length));
+    const worst = arr.slice(-Math.min(3, arr.length - best.length)).reverse();
+    return { best, worst, all: arr };
   }
 
   const themes = [...new Set(UNIVERSE.map((u) => u.theme))];
@@ -852,6 +860,8 @@ async function main() {
       naver_caveat: '네이버 시세는 액면분할은 반영하지만 배당은 반영하지 않습니다. 네이버로 폴백된 종목은 배당수익률(국내 연 2% 안팎)만큼 장기 수익률이 실제보다 낮게 잡힙니다.',
     },
     source_summary: sourceSummary,
+    missing_theories: missingTheories,
+    fred_key_used: !!FRED_KEY,
     theories: THEORIES.map((t) => ({
       key: t.key, name: t.name, academic: t.academic, series: t.series,
       expect: t.expect, scope: t.scope, short: t.short, kid: t.kid,

@@ -211,13 +211,26 @@ function render() {
 
   const w = [];
   if (D.last_error) w.push('마지막 수집이 실패해 이전 데이터를 그대로 보여주고 있습니다: ' + esc(D.last_error));
-  if (D.warnings?.length) w.push('수집 경고 ' + D.warnings.length + '건: ' + D.warnings.slice(0,4).map(esc).join(' / ') + (D.warnings.length>4?' 외…':''));
+  // 개별 FRED 타임아웃은 아래 전용 안내로 대체하므로 배너에서는 접어둔다
+  const noisy = (D.warnings || []).filter(x => !/^FRED |검증 불가한 이론|소스가 응답하지/.test(x));
+  if (noisy.length) w.push('수집 경고 ' + noisy.length + '건: ' + noisy.slice(0,3).map(esc).join(' / ') + (noisy.length>3?' 외…':''));
   const ss = D.source_summary || {};
   const fb = Object.entries(ss).filter(([k]) => k !== 'yahoo');
   if (fb.length) w.push('Yahoo 대신 폴백 소스를 쓴 종목이 있습니다 (' +
     fb.map(([k, v]) => esc(k) + ' ' + v + '종목').join(', ') + ').' +
     (ss.naver ? ' 네이버 시세는 배당을 반영하지 않아 해당 종목의 장기 수익률이 실제보다 낮게 잡힙니다.' : ''));
-  document.getElementById('warnBox').innerHTML = w.length ? `<div class="warn">⚠️ ${w.join('<br>')}</div>` : '';
+  const mt = D.missing_theories || [];
+  const mtBox = mt.length ? `<div class="note" style="margin-bottom:18px">
+    🔑 <b>지금 이론 ${mt.length}개가 빠져 있습니다</b> — ${mt.map(t => esc(t.name)).join(', ')}.<br>
+    이 지표들은 미국 연준 통계(FRED)에만 있고 무료 대체 지표가 없습니다.
+    <b>인플레이션·디플레이션 계열 이론이 여기 포함</b>되므로, 아래를 한 번 해두시면 다음 갱신부터 전부 살아납니다.<br>
+    <span style="display:inline-block;margin-top:6px">
+      ① <a href="https://fredaccount.stlouisfed.org/apikeys" target="_blank" rel="noopener">FRED에서 무료 API 키 발급</a>
+      → ② 저장소 Settings → Secrets and variables → Actions → New repository secret
+      → ③ 이름 <code>FRED_API_KEY</code>, 값에 키 붙여넣기
+    </span></div>` : '';
+  document.getElementById('warnBox').innerHTML =
+    mtBox + (w.length ? `<div class="warn">⚠️ ${w.join('<br>')}</div>` : '');
 
   renderDash(); renderTheory(); renderStocks(); renderStrategy(); renderGlossary(); renderMethod();
 }
@@ -259,14 +272,14 @@ function renderDash() {
     <div class="grid2">
       <div class="card">
         <div class="card-header"><div>
-          <div class="card-title">🏆 가장 잘 맞는 이론 TOP 3</div>
+          <div class="card-title">🏆 가장 잘 맞는 이론 ${best.length}개</div>
           <div class="card-sub">30개 종목 전체 평균 점수 기준</div>
         </div></div>
         ${best.map((b, i) => rankRow(b, i, true)).join('') || '<div class="empty">데이터 없음</div>'}
       </div>
       <div class="card">
         <div class="card-header"><div>
-          <div class="card-title">💤 가장 안 맞는 이론 TOP 3</div>
+          <div class="card-title">💤 가장 안 맞는 이론 ${worst.length}개</div>
           <div class="card-sub">점수가 낮다 = 이 종목들에겐 그 규칙이 잘 안 통했다</div>
         </div></div>
         ${worst.map((b, i) => rankRow(b, i, false)).join('') || '<div class="empty">데이터 없음</div>'}
@@ -499,7 +512,7 @@ function openStock(ticker) {
     ${spark(s.spark)}
     <div style="font-size:11px;color:var(--muted);text-align:right;margin-top:2px">주간 종가 · ${esc(s.spark_from || '')} ~</div>
 
-    <h4 style="font-size:14px;font-weight:700;margin:22px 0 10px">👍 이 종목에 가장 잘 맞는 이론 TOP 3</h4>
+    <h4 style="font-size:14px;font-weight:700;margin:22px 0 10px">👍 이 종목에 가장 잘 맞는 이론 ${best.length}개</h4>
     ${best.map((f, i) => `<div style="margin-bottom:11px">
       <div class="rank-row" style="border:none;padding:5px 0">
         <div class="rank-no top">${i + 1}</div>
@@ -510,7 +523,7 @@ function openStock(ticker) {
       </div>
       <div class="kid" style="margin-top:5px">${explain(f)}</div></div>`).join('') || '<div class="empty">검증 결과 없음</div>'}
 
-    <h4 style="font-size:14px;font-weight:700;margin:22px 0 10px">👎 이 종목에 가장 안 맞는 이론 TOP 3</h4>
+    <h4 style="font-size:14px;font-weight:700;margin:22px 0 10px">👎 이 종목에 가장 안 맞는 이론 ${worst.length}개</h4>
     ${worst.map((f, i) => `<div style="margin-bottom:11px">
       <div class="rank-row" style="border:none;padding:5px 0">
         <div class="rank-no bot">${i + 1}</div>
