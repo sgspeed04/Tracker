@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>테마주 이론 검증 랩</title>
+<style>
+:root {
+  --primary:#2563eb; --primary-dark:#1d4ed8; --success:#16a34a;
+  --warning:#d97706; --danger:#dc2626; --purple:#7c3aed;
+  --bg:#f8fafc; --card:#fff; --border:#e2e8f0;
+  --text:#0f172a; --muted:#64748b; --sidebar:#0f172a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.app{display:flex;min-height:100vh}
+
+.sidebar{width:220px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;position:fixed;height:100vh;z-index:200;transition:transform .3s}
+.sidebar-logo{padding:22px 18px 18px;border-bottom:1px solid #1e293b}
+.sidebar-logo h1{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.sidebar-logo p{font-size:11px;color:#64748b;margin-top:3px}
+.sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 18px;cursor:pointer;color:#94a3b8;font-size:13.5px;font-weight:500;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{background:#1e293b;color:#fff}
+.nav-item.active{background:#1e293b;color:#fff;border-left-color:var(--primary)}
+.nav-icon{font-size:16px;width:18px;text-align:center}
+.sidebar-footer{padding:14px 18px;border-top:1px solid #1e293b;font-size:11px;color:#64748b;line-height:1.6}
+
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar h2{font-size:19px;font-weight:700}
+.topbar-right{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--muted)}
+.hamburger{display:none;background:none;border:none;cursor:pointer;font-size:20px;padding:4px}
+.content{padding:28px;flex:1;max-width:1400px}
+.view{display:none} .view.active{display:block}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px}
+.stat-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.stat-value{font-size:24px;font-weight:800}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5}
+
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:18px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap}
+.card-title{font-size:15px;font-weight:700}
+.card-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.6}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+.btn{padding:7px 13px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);transition:all .15s}
+.btn:hover{background:var(--bg)}
+.btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+
+/* 쉬운 설명 박스 */
+.kid{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:13px 15px;font-size:13.5px;line-height:1.75;color:#78350f}
+.kid b{color:#92400e}
+.kid-tag{display:inline-block;background:#f59e0b;color:#fff;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;margin-right:7px;vertical-align:1px}
+
+/* 랭킹 막대 */
+.rank-row{display:grid;grid-template-columns:26px 1fr 190px 54px;gap:11px;align-items:center;padding:9px 0;border-bottom:1px solid #f1f5f9}
+.rank-row:last-child{border-bottom:none}
+.rank-no{font-size:12px;font-weight:800;color:#94a3b8;text-align:center}
+.rank-no.top{color:var(--success)} .rank-no.bot{color:var(--danger)}
+.rank-name{font-size:13.5px;font-weight:600;line-height:1.4}
+.rank-name small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px}
+.bar-wrap{background:#f1f5f9;border-radius:6px;height:19px;overflow:hidden;position:relative}
+.bar{height:100%;border-radius:6px;transition:width .5s}
+.bar-lbl{position:absolute;right:7px;top:0;line-height:19px;font-size:11px;font-weight:700;color:#475569}
+.rank-score{font-size:15px;font-weight:800;text-align:right}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 8px;border-bottom:2px solid var(--border);font-size:11.5px;color:var(--muted);font-weight:700;white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid #f1f5f9;white-space:nowrap}
+tr.clickable{cursor:pointer} tr.clickable:hover{background:#f8fafc}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.pos{color:var(--success);font-weight:600} .neg{color:var(--danger);font-weight:600}
+.badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px}
+.badge.kr{background:#dbeafe;color:#1e40af} .badge.us{background:#ede9fe;color:#5b21b6}
+.badge.ok{background:#dcfce7;color:#166534} .badge.no{background:#fee2e2;color:#991b1b}
+.badge.gray{background:#f1f5f9;color:#475569}
+
+.stock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:14px}
+.stock-card{background:#fff;border:1px solid var(--border);border-radius:11px;padding:15px;cursor:pointer;transition:all .15s}
+.stock-card:hover{border-color:var(--primary);box-shadow:0 3px 12px rgba(37,99,235,.09);transform:translateY(-1px)}
+.sc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px}
+.sc-name{font-size:14.5px;font-weight:700}
+.sc-tick{font-size:11px;color:var(--muted);margin-top:2px}
+.sc-price{font-size:16px;font-weight:800;margin:9px 0 2px}
+.sc-why{font-size:11.5px;color:var(--muted);margin-top:9px;line-height:1.5}
+.sc-fit{font-size:11.5px;margin-top:9px;padding-top:9px;border-top:1px solid #f1f5f9;line-height:1.6}
+
+.modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:500;padding:24px;overflow-y:auto}
+.modal.open{display:block}
+body.modal-open{overflow:hidden}
+.modal-box{background:#fff;border-radius:14px;max-width:820px;margin:0 auto;padding:26px}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.close{background:none;border:none;font-size:24px;cursor:pointer;color:var(--muted);line-height:1}
+
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:44px;margin-bottom:14px}
+.warn{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px 15px;font-size:12.5px;line-height:1.7;margin-bottom:18px}
+.note{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;border-radius:10px;padding:12px 15px;font-size:12.5px;line-height:1.7}
+
+.gauge{height:7px;background:#f1f5f9;border-radius:4px;position:relative;margin-top:8px}
+.gauge-fill{height:100%;border-radius:4px}
+.gauge-tick{position:absolute;top:-3px;width:2px;height:13px;background:#0f172a;border-radius:1px}
+
+.dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px;line-height:1.7}
+.dl dt{color:var(--muted);font-weight:600}
+.dl dd{font-variant-numeric:tabular-nums}
+
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%)} .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0} .hamburger{display:block}
+  .stats-grid{grid-template-columns:1fr 1fr} .grid2{grid-template-columns:1fr}
+  .content{padding:16px} .rank-row{grid-template-columns:22px 1fr 54px}
+  .rank-row .bar-wrap{display:none}
+  .table-scroll{overflow-x:auto}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h1>🔬 테마주 이론 검증 랩</h1>
+      <p>매크로 이론 × AI·에너지·로봇·자동차·환경</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" data-view="dash"><span class="nav-icon">📊</span> 대시보드</div>
+      <div class="nav-item" data-view="theory"><span class="nav-icon">🧪</span> 이론 검증 순위</div>
+      <div class="nav-item" data-view="stocks"><span class="nav-icon">📈</span> 종목별 분석</div>
+      <div class="nav-item" data-view="strategy"><span class="nav-icon">⚔️</span> 전략 비교</div>
+      <div class="nav-item" data-view="glossary"><span class="nav-icon">📖</span> 쉬운 용어 사전</div>
+      <div class="nav-item" data-view="method"><span class="nav-icon">ℹ️</span> 계산 방법·주의</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="sfUpdated">데이터 로딩 중…</div>
+      <div style="margin-top:6px;color:#475569">투자 자문 아님 · 통계 실험</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="hamburger" id="hamb">☰</button>
+        <h2 id="pageTitle">대시보드</h2>
+      </div>
+      <div class="topbar-right"><span id="asOf"></span></div>
+    </div>
+
+    <div class="content">
+      <div id="warnBox"></div>
+      <div class="view active" id="view-dash"></div>
+      <div class="view" id="view-theory"></div>
+      <div class="view" id="view-stocks"></div>
+      <div class="view" id="view-strategy"></div>
+      <div class="view" id="view-glossary"></div>
+      <div class="view" id="view-method"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal"><div class="modal-box" id="modalBox"></div></div>
+
+<script>
+/* ══════════════ 상태 ══════════════ */
+let D = null;                       // data/stocks.json
+let themeFilter = 'ALL';
+let marketFilter = 'ALL';
+const TITLES = {dash:'대시보드', theory:'이론 검증 순위', stocks:'종목별 분석',
+                strategy:'전략 비교', glossary:'쉬운 용어 사전', method:'계산 방법·주의'};
+const THEME_ICON = {'AI':'🤖','에너지':'⚡','로봇':'🦾','자동차':'🚗','환경':'🌱'};
+
+/* ══════════════ 유틸 ══════════════ */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const n2 = v => v == null || !isFinite(v) ? '—' : (Math.round(v*100)/100).toLocaleString('ko-KR',{maximumFractionDigits:2});
+const sgn = v => v == null ? '—' : (v > 0 ? '+' : '') + n2(v);
+const cls = v => v == null ? '' : (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
+const th = k => (D?.theories || []).find(t => t.key === k) || {name:k, kid:'', short:''};
+const scoreColor = s => s >= 60 ? '#16a34a' : s >= 40 ? '#65a30d' : s >= 25 ? '#d97706' : '#dc2626';
+
+/* 종목 하나에서 특정 이론의 검증 결과 */
+const fitOf = (st, key) => (st.fits || []).find(f => f.theory === key);
+
+/* ══════════════ 로딩 ══════════════ */
+async function load() {
+  try {
+    const res = await fetch('data/stocks.json?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    D = await res.json();
+  } catch (e) {
+    document.getElementById('view-dash').innerHTML = `
+      <div class="empty"><div class="empty-icon">📭</div>
+        <h3 style="margin-bottom:8px">아직 수집된 데이터가 없습니다</h3>
+        <p style="font-size:13px;line-height:1.8">
+          <code>data/stocks.json</code> 을 아직 못 읽었어요 (${esc(e.message)}).<br>
+          GitHub Actions의 <b>update-stocks</b> 워크플로가 한 번 실행되면 자동으로 생성됩니다.<br>
+          수동 실행: Actions 탭 → update-stocks → Run workflow
+        </p></div>`;
+    document.getElementById('sfUpdated').textContent = '데이터 없음';
+    return;
+  }
+  render();
+}
+
+function render() {
+  document.getElementById('sfUpdated').innerHTML =
+    '갱신: ' + new Date(D.updated_at).toLocaleString('ko-KR', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+  document.getElementById('asOf').textContent = D.as_of ? '시세 기준일 ' + D.as_of : '';
+
+  const w = [];
+  if (D.last_error) w.push('마지막 수집이 실패해 이전 데이터를 그대로 보여주고 있습니다: ' + esc(D.last_error));
+  // 개별 FRED 타임아웃은 아래 전용 안내로 대체하므로 배너에서는 접어둔다
+  const noisy = (D.warnings || []).filter(x => !/^FRED |검증 불가한 이론|소스가 응답하지/.test(x));
+  if (noisy.length) w.push('수집 경고 ' + noisy.length + '건: ' + noisy.slice(0,3).map(esc).join(' / ') + (noisy.length>3?' 외…':''));
+  const ss = D.source_summary || {};
+  const fb = Object.entries(ss).filter(([k]) => k !== 'yahoo');
+  if (fb.length) w.push('Yahoo 대신 폴백 소스를 쓴 종목이 있습니다 (' +
+    fb.map(([k, v]) => esc(k) + ' ' + v + '종목').join(', ') + ').' +
+    (ss.naver ? ' 네이버 시세는 배당을 반영하지 않아 해당 종목의 장기 수익률이 실제보다 낮게 잡힙니다.' : ''));
+  const mt = D.missing_theories || [];
+  const mtBox = mt.length ? `<div class="note" style="margin-bottom:18px">
+    🔑 <b>지금 이론 ${mt.length}개가 빠져 있습니다</b> — ${mt.map(t => esc(t.name)).join(', ')}.<br>
+    이 지표들은 미국 연준 통계(FRED)에만 있고 무료 대체 지표가 없습니다.
+    <b>인플레이션·디플레이션 계열 이론이 여기 포함</b>되므로, 아래를 한 번 해두시면 다음 갱신부터 전부 살아납니다.<br>
+    <span style="display:inline-block;margin-top:6px">
+      ① <a href="https://fredaccount.stlouisfed.org/apikeys" target="_blank" rel="noopener">FRED에서 무료 API 키 발급</a>
+      → ② 저장소 Settings → Secrets and variables → Actions → New repository secret
+      → ③ 이름 <code>FRED_API_KEY</code>, 값에 키 붙여넣기
+    </span></div>` : '';
+  document.getElementById('warnBox').innerHTML =
+    mtBox + (w.length ? `<div class="warn">⚠️ ${w.join('<br>')}</div>` : '');
+
+  renderDash(); renderTheory(); renderStocks(); renderStrategy(); renderGlossary(); renderMethod();
+}
+
+/* ══════════════ 1. 대시보드 ══════════════ */
+function renderDash() {
+  const best = D.overall_rank?.best || [], worst = D.overall_rank?.worst || [];
+  const strat = D.strategy_rank || [];
+  const bh = strat.find(s => s.key === 'bh');
+  const topStrat = strat.find(s => s.key !== 'bh');
+
+  const macroCards = (D.macro || []).map(m => {
+    const t = th(m.key);
+    const dirWord = m.chg1m > 0 ? '올라가는 중 ↑' : m.chg1m < 0 ? '내려가는 중 ↓' : '거의 그대로';
+    // 색은 '좋다/나쁘다'가 아니라 '평소에서 얼마나 벗어났나'만 나타낸다.
+    // (VIX는 높을 때, 장단기 금리차는 낮을 때가 경고라 방향이 지표마다 반대이기 때문)
+    const extreme = m.pct3y >= 85 || m.pct3y <= 15;
+    const zone = m.pct3y >= 70 ? '최근 3년 중 <b>높은</b> 편' : m.pct3y <= 30 ? '최근 3년 중 <b>낮은</b> 편' : '평소 수준';
+    const color = extreme ? '#d97706' : '#2563eb';
+    return `<div class="stat">
+      <div class="stat-label">${esc(m.name)} <span style="color:#cbd5e1">·</span> ${esc(m.series)}${
+        m.proxy ? ` <span class="badge gray" title="${esc(m.proxy)}">대체지표</span>` : ''}</div>
+      <div class="stat-value" style="color:${color}">${n2(m.value)}${esc(m.unit)}</div>
+      <div class="stat-sub">1개월 ${sgn(m.chg1m)} · ${dirWord}<br>${zone} (${m.pct3y ?? '—'}번째 백분위)${extreme ? ' <b style="color:#d97706">· 평소에서 크게 벗어남</b>' : ''}${
+        m.proxy ? `<br><span style="color:#d97706">원지표 대신 ${esc(m.proxy)}</span>` : ''}</div>
+      <div class="gauge"><div class="gauge-fill" style="width:${m.pct3y ?? 0}%;background:${color}"></div></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('view-dash').innerHTML = `
+    <div class="card">
+      <div class="card-header"><div>
+        <div class="card-title">📌 지금 시장의 신호등</div>
+        <div class="card-sub">이론들이 쓰는 매크로 숫자의 오늘 값입니다. 막대는 "최근 3년 중 몇 번째로 높은 값이냐"를 뜻해요 — 오른쪽 끝일수록 평소보다 극단적인 상태입니다.</div>
+      </div></div>
+      <div class="stats-grid">${macroCards || '<div class="empty">매크로 데이터 없음</div>'}</div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-header"><div>
+          <div class="card-title">🏆 가장 잘 맞는 이론 ${best.length}개</div>
+          <div class="card-sub">30개 종목 전체 평균 점수 기준</div>
+        </div></div>
+        ${best.map((b, i) => rankRow(b, i, true)).join('') || '<div class="empty">데이터 없음</div>'}
+      </div>
+      <div class="card">
+        <div class="card-header"><div>
+          <div class="card-title">💤 가장 안 맞는 이론 ${worst.length}개</div>
+          <div class="card-sub">점수가 낮다 = 이 종목들에겐 그 규칙이 잘 안 통했다</div>
+        </div></div>
+        ${worst.map((b, i) => rankRow(b, i, false)).join('') || '<div class="empty">데이터 없음</div>'}
+      </div>
+    </div>
+
+    ${best[0] ? `<div class="card"><div class="kid">
+      <span class="kid-tag">쉬운 설명</span>
+      지금까지 3년치 숫자를 세어 보니, 이 30개 회사의 주가를 가장 잘 설명한 규칙은
+      <b>${esc(th(best[0].theory).name)}</b>였어요 (100점 만점에 ${best[0].score}점).
+      ${esc(th(best[0].theory).short)}는 이야기인데, 30개 중 ${best[0].agree_pct}%의 회사에서 실제로 그 방향이 맞았어요.<br><br>
+      반대로 <b>${esc(th(worst[0]?.theory)?.name || '')}</b>은(는) ${worst[0]?.score}점밖에 안 됐어요.
+      규칙이 틀렸다기보다, <b>주가를 흔드는 진짜 이유는 대부분 그 회사 자기 사정</b>(실적, 신제품, 경쟁)이라서
+      매크로 숫자 하나로 맞히기는 원래 어렵다는 뜻이에요.
+    </div></div>` : ''}
+
+    ${topStrat && bh ? `<div class="card">
+      <div class="card-header"><div>
+        <div class="card-title">⚔️ 남들이 많이 쓰는 전략, 진짜 효과 있었나</div>
+        <div class="card-sub">같은 종목·같은 기간에 태워 본 결과 (거래비용·세금 미반영)</div>
+      </div></div>
+      <div class="dl" style="grid-template-columns:auto 1fr auto 1fr">
+        <dt>위험 대비 성적 1위</dt><dd><b>${esc(topStrat.name)}</b> (샤프 ${n2(topStrat.sharpe)})</dd>
+        <dt>그냥 사서 보유</dt><dd>샤프 ${n2(bh.sharpe)} / 연 ${n2(bh.cagr)}%</dd>
+        <dt>1위 전략 연수익</dt><dd class="${cls(topStrat.cagr)}">${n2(topStrat.cagr)}%</dd>
+        <dt>최대 낙폭 비교</dt><dd>${n2(topStrat.mdd)}% <span style="color:#94a3b8">vs</span> ${n2(bh.mdd)}%</dd>
+      </div>
+      <div class="kid" style="margin-top:14px"><span class="kid-tag">쉬운 설명</span>
+        ${esc(topStrat.name)}은 ${esc(topStrat.kid)}
+        연수익만 보면 그냥 사서 들고 있는 것보다 ${topStrat.vs_bh >= 0 ? `<b>${n2(topStrat.vs_bh)}%p 더 벌었지만</b>` : `<b>${n2(-topStrat.vs_bh)}%p 덜 벌었지만</b>`},
+        떨어질 때 견뎌야 하는 손실(최대 낙폭)이 ${Math.abs(topStrat.mdd) < Math.abs(bh.mdd) ? '<b>더 얕아서</b> 마음이 편했어요' : '더 깊어서 더 힘들었어요'}.
+        <b>돈을 더 버는 것과, 덜 무서운 것은 다른 문제</b>예요.
+      </div>
+    </div>` : ''}`;
+}
+
+function rankRow(r, i, isBest) {
+  const t = th(r.theory);
+  return `<div class="rank-row">
+    <div class="rank-no ${isBest ? 'top' : 'bot'}">${i + 1}</div>
+    <div class="rank-name">${esc(t.name)}<small>${esc(t.short)}</small></div>
+    <div class="bar-wrap"><div class="bar" style="width:${r.score}%;background:${scoreColor(r.score)}"></div>
+      <span class="bar-lbl">부호일치 ${r.agree_pct}%</span></div>
+    <div class="rank-score" style="color:${scoreColor(r.score)}">${r.score}</div>
+  </div>`;
+}
+
+/* ══════════════ 2. 이론 검증 순위 ══════════════ */
+function renderTheory() {
+  const themes = Object.keys(D.theme_rank || {});
+  const rows = (D.overall_rank?.all || []).map((r, i) => {
+    const t = th(r.theory);
+    return `<div class="rank-row">
+      <div class="rank-no ${i < 3 ? 'top' : ''}">${i + 1}</div>
+      <div class="rank-name">${esc(t.name)}<small>${esc(t.short)}</small></div>
+      <div class="bar-wrap"><div class="bar" style="width:${r.score}%;background:${scoreColor(r.score)}"></div>
+        <span class="bar-lbl">R² ${n2(r.avg_r2)}% · |t| ${n2(r.avg_absT)}</span></div>
+      <div class="rank-score" style="color:${scoreColor(r.score)}">${r.score}</div>
+    </div>`;
+  }).join('');
+
+  const themeCards = themes.map(tn => {
+    const tr = D.theme_rank[tn];
+    if (!tr?.all?.length) return '';
+    return `<div class="card">
+      <div class="card-header"><div class="card-title">${THEME_ICON[tn] || '📦'} ${esc(tn)} 테마</div></div>
+      ${tr.all.slice(0, 4).map((r, i) => `<div class="rank-row">
+        <div class="rank-no ${i === 0 ? 'top' : ''}">${i + 1}</div>
+        <div class="rank-name">${esc(th(r.theory).name)}</div>
+        <div class="bar-wrap"><div class="bar" style="width:${r.score}%;background:${scoreColor(r.score)}"></div></div>
+        <div class="rank-score" style="color:${scoreColor(r.score)}">${r.score}</div></div>`).join('')}
+      <div style="font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6">
+        꼴찌: ${esc(th(tr.worst[0]?.theory).name || '—')} (${tr.worst[0]?.score ?? '—'}점)
+      </div>
+    </div>`;
+  }).join('');
+
+  const detail = (D.theories || []).map(t => {
+    const r = (D.overall_rank?.all || []).find(x => x.theory === t.key);
+    return `<div class="card">
+      <div class="card-header">
+        <div><div class="card-title">${esc(t.name)}</div>
+          <div class="card-sub">${esc(t.academic)} · 지표 <code>${esc(t.series)}</code>
+            · 예측 방향 <b>${t.expect > 0 ? '같이 오른다 (+)' : '반대로 간다 (−)'}</b>
+            ${t.scope === 'KR' ? '· <span class="badge kr">한국 종목만</span>' : ''}</div></div>
+        ${r ? `<div style="text-align:right"><div style="font-size:26px;font-weight:800;color:${scoreColor(r.score)}">${r.score}</div>
+          <div style="font-size:11px;color:var(--muted)">평균 점수 (${r.n}종목)</div></div>` : ''}
+      </div>
+      <div class="kid"><span class="kid-tag">초등학생용</span>${esc(t.kid)}</div>
+      ${r ? `<div class="dl" style="margin-top:14px;grid-template-columns:auto 1fr auto 1fr">
+        <dt>평균 설명력 R²</dt><dd>${n2(r.avg_r2)}% <span style="color:#94a3b8">— 주가 움직임 중 이만큼만 설명</span></dd>
+        <dt>평균 |t|</dt><dd>${n2(r.avg_absT)} <span style="color:#94a3b8">— 2 넘으면 우연 아닐 확률 높음</span></dd>
+        <dt>부호 일치율</dt><dd>${r.agree_pct}% <span style="color:#94a3b8">— 이론 방향대로 나온 종목 비율</span></dd>
+        <dt>검증 종목 수</dt><dd>${r.n}개</dd>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('view-theory').innerHTML = `
+    <div class="card">
+      <div class="card-header"><div>
+        <div class="card-title">🧪 이론 전체 순위 (30개 종목 평균)</div>
+        <div class="card-sub">${esc(D.method?.score || '')}</div>
+      </div></div>
+      ${rows || '<div class="empty">데이터 없음</div>'}
+    </div>
+    <div class="note" style="margin-bottom:18px">
+      💡 <b>점수가 낮다고 이론이 틀린 게 아닙니다.</b> 주간 데이터에서 매크로 지표 하나가 개별 주가의 5% 이상을 설명하면
+      이미 매우 강한 관계입니다. 나머지 90%대는 그 회사의 실적·뉴스·수급 같은 개별 요인이에요.
+    </div>
+    <h3 style="font-size:15px;font-weight:700;margin:22px 0 12px">테마별로 잘 통한 이론</h3>
+    <div class="grid2">${themeCards}</div>
+    <h3 style="font-size:15px;font-weight:700;margin:26px 0 12px">이론 하나하나 뜯어보기</h3>
+    ${detail}`;
+}
+
+/* ══════════════ 3. 종목별 분석 ══════════════ */
+function renderStocks() {
+  const themes = [...new Set((D.stocks || []).map(s => s.theme))];
+  const filtered = (D.stocks || []).filter(s =>
+    (themeFilter === 'ALL' || s.theme === themeFilter) &&
+    (marketFilter === 'ALL' || s.market === marketFilter));
+
+  const cards = filtered.sort((a, b) => a.theme.localeCompare(b.theme) || a.market.localeCompare(b.market) || a.rank - b.rank)
+    .map(s => {
+      const b = s.fits?.[0];
+    const w = (s.fits?.length ?? 0) >= 2 ? s.fits[s.fits.length - 1] : null;
+      return `<div class="stock-card" data-ticker="${esc(s.ticker)}">
+        <div class="sc-top">
+          <div><div class="sc-name">${THEME_ICON[s.theme] || ''} ${esc(s.name)}</div>
+            <div class="sc-tick">${esc(s.ticker)} · ${esc(s.theme)} ${s.rank}위</div></div>
+          <span class="badge ${s.market === 'KR' ? 'kr' : 'us'}">${s.market}</span>
+        </div>
+        <div class="sc-price">${n2(s.last)}</div>
+        <div style="font-size:12px">
+          <span class="${cls(s.chg1d)}">1일 ${sgn(s.chg1d)}%</span> ·
+          <span class="${cls(s.chg1m)}">1개월 ${sgn(s.chg1m)}%</span> ·
+          <span class="${cls(s.chg1y)}">1년 ${sgn(s.chg1y)}%</span>
+        </div>
+        ${spark(s.spark)}
+        <div class="sc-why">${esc(s.why)}</div>
+        <div class="sc-fit">
+          ${b ? `👍 잘 맞는 이론: <b>${esc(th(b.theory).name)}</b> <span style="color:${scoreColor(b.score)};font-weight:700">${b.score}점</span>` : ''}
+          ${w ? `<br>👎 안 맞는 이론: ${esc(th(w.theory).name)} <span style="color:${scoreColor(w.score)};font-weight:700">${w.score}점</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+  document.getElementById('view-stocks').innerHTML = `
+    <div class="card">
+      <div class="card-header" style="margin-bottom:0">
+        <div class="chips">
+          <button class="btn ${themeFilter === 'ALL' ? 'active' : ''}" data-tf="ALL">전체 테마</button>
+          ${themes.map(t => `<button class="btn ${themeFilter === t ? 'active' : ''}" data-tf="${esc(t)}">${THEME_ICON[t] || ''} ${esc(t)}</button>`).join('')}
+        </div>
+        <div class="chips">
+          <button class="btn ${marketFilter === 'ALL' ? 'active' : ''}" data-mf="ALL">한국+미국</button>
+          <button class="btn ${marketFilter === 'KR' ? 'active' : ''}" data-mf="KR">🇰🇷 한국</button>
+          <button class="btn ${marketFilter === 'US' ? 'active' : ''}" data-mf="US">🇺🇸 미국</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-sub" style="margin:-8px 0 14px">카드를 누르면 그 종목이 어떤 이론과 얼마나 맞는지 자세히 볼 수 있어요. (${filtered.length}종목)</div>
+    <div class="stock-grid">${cards || '<div class="empty">조건에 맞는 종목 없음</div>'}</div>`;
+
+  document.querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { themeFilter = b.dataset.tf; renderStocks(); });
+  document.querySelectorAll('[data-mf]').forEach(b => b.onclick = () => { marketFilter = b.dataset.mf; renderStocks(); });
+  document.querySelectorAll('.stock-card').forEach(c => c.onclick = () => openStock(c.dataset.ticker));
+}
+
+/** SVG 스파크라인 */
+function spark(arr) {
+  if (!arr || arr.length < 5) return '';
+  const w = 210, h = 34, mn = Math.min(...arr), mx = Math.max(...arr), rg = mx - mn || 1;
+  const pts = arr.map((v, i) => `${(i / (arr.length - 1) * w).toFixed(1)},${(h - (v - mn) / rg * h).toFixed(1)}`).join(' ');
+  const up = arr[arr.length - 1] >= arr[0];
+  const col = up ? '#16a34a' : '#dc2626';
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:34px;margin-top:9px;display:block">
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+}
+
+/* 종목 상세 모달 */
+function openStock(ticker) {
+  const s = (D.stocks || []).find(x => x.ticker === ticker);
+  if (!s) return;
+  const fits = s.fits || [];
+  // 상장 기간이 짧아 검증된 이론이 6개 미만이면 best/worst 가 겹칠 수 있으므로 잘라낸다
+  const half = Math.floor(fits.length / 2);
+  const best = fits.slice(0, Math.min(3, half || fits.length));
+  const worst = fits.slice(-Math.min(3, fits.length - best.length)).reverse();
+
+  const explain = f => {
+    const t = th(f.theory);
+    const dir = f.beta < 0 ? '내려갔어요' : '올라갔어요';
+    const unit = t.unit === '%p' ? '평소보다 한 칸(1표준편차) 움직인' : '평소보다 한 칸(1표준편차) 움직인';
+    return `이 회사는 <b>${esc(t.name)}</b>과 ${f.agree ? '<b>방향이 맞았어요</b>' : '<b>방향이 반대였어요</b>'} (${f.score}점).<br>
+      ${esc(t.series)}가 ${unit} 주에는 이 회사 주가가 평균 <b>${sgn(f.beta)}%</b> ${dir}.
+      그런 주 100번 중 <b>${n2(f.hit)}번</b>은 이론이 말한 방향대로 갔어요.<br>
+      다만 이 이론이 설명하는 건 주가 움직임의 <b>${n2(f.r2)}%</b>뿐이라, 나머지 <b>${n2(100 - f.r2)}%</b>는
+      실적·뉴스처럼 이 회사만의 이유예요. (t값 ${n2(f.t)}${Math.abs(f.t) >= 2 ? ' — 우연이라고 보기 어려움' : ' — 우연일 수도 있음'}, ${f.n}주 관측)`;
+  };
+
+  const stratRows = (D.strategy_defs || []).map(sd => {
+    const r = s.strategies?.[sd.key];
+    if (!r) return '';
+    const bh = s.strategies?.bh;
+    const diff = bh ? r.cagr - bh.cagr : null;
+    return `<tr><td>${esc(sd.name)}</td>
+      <td class="num ${cls(r.cagr)}">${n2(r.cagr)}%</td>
+      <td class="num ${r.mdd < 0 ? 'neg' : ''}">${n2(r.mdd)}%</td>
+      <td class="num">${n2(r.sharpe)}</td>
+      <td class="num">${n2(r.exposure)}%</td>
+      <td class="num ${cls(diff)}">${sd.key === 'bh' ? '기준' : sgn(diff) + '%p'}</td></tr>`;
+  }).join('');
+
+  document.getElementById('modalBox').innerHTML = `
+    <div class="modal-head">
+      <div><h3 style="font-size:20px;font-weight:800">${THEME_ICON[s.theme] || ''} ${esc(s.name)}
+        <span class="badge ${s.market === 'KR' ? 'kr' : 'us'}">${s.market}</span></h3>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:4px">
+          ${esc(s.ticker)} · ${esc(s.theme)} 테마 ${s.rank}위 · ${esc(s.why)}</div></div>
+      <button class="close" onclick="closeModal()">×</button>
+    </div>
+    <div class="dl" style="margin:16px 0;grid-template-columns:auto 1fr auto 1fr">
+      <dt>현재가</dt><dd><b>${n2(s.last)}</b></dd>
+      <dt>1년 수익률</dt><dd class="${cls(s.chg1y)}">${sgn(s.chg1y)}%</dd>
+      <dt>1개월</dt><dd class="${cls(s.chg1m)}">${sgn(s.chg1m)}%</dd>
+      <dt>데이터 기간</dt><dd>${s.days}거래일 (${esc(s.source)})</dd>
+    </div>
+    ${spark(s.spark)}
+    <div style="font-size:11px;color:var(--muted);text-align:right;margin-top:2px">주간 종가 · ${esc(s.spark_from || '')} ~</div>
+
+    <h4 style="font-size:14px;font-weight:700;margin:22px 0 10px">👍 이 종목에 가장 잘 맞는 이론 ${best.length}개</h4>
+    ${best.map((f, i) => `<div style="margin-bottom:11px">
+      <div class="rank-row" style="border:none;padding:5px 0">
+        <div class="rank-no top">${i + 1}</div>
+        <div class="rank-name">${esc(th(f.theory).name)}</div>
+        <div class="bar-wrap"><div class="bar" style="width:${f.score}%;background:${scoreColor(f.score)}"></div>
+          <span class="bar-lbl">β ${sgn(f.beta)}%/1σ · R² ${n2(f.r2)}%</span></div>
+        <div class="rank-score" style="color:${scoreColor(f.score)}">${f.score}</div>
+      </div>
+      <div class="kid" style="margin-top:5px">${explain(f)}</div></div>`).join('') || '<div class="empty">검증 결과 없음</div>'}
+
+    <h4 style="font-size:14px;font-weight:700;margin:22px 0 10px">👎 이 종목에 가장 안 맞는 이론 ${worst.length}개</h4>
+    ${worst.map((f, i) => `<div style="margin-bottom:11px">
+      <div class="rank-row" style="border:none;padding:5px 0">
+        <div class="rank-no bot">${i + 1}</div>
+        <div class="rank-name">${esc(th(f.theory).name)} ${f.agree ? '' : '<span class="badge no">방향 반대</span>'}</div>
+        <div class="bar-wrap"><div class="bar" style="width:${Math.max(f.score, 2)}%;background:${scoreColor(f.score)}"></div>
+          <span class="bar-lbl">β ${sgn(f.beta)}%/1σ · R² ${n2(f.r2)}%</span></div>
+        <div class="rank-score" style="color:${scoreColor(f.score)}">${f.score}</div>
+      </div>
+      <div class="kid" style="margin-top:5px">${explain(f)}</div></div>`).join('')}
+
+    <h4 style="font-size:14px;font-weight:700;margin:22px 0 10px">⚔️ 이 종목에 전략들을 태워 봤다면</h4>
+    <div class="table-scroll"><table>
+      <thead><tr><th>전략</th><th class="num">연수익</th><th class="num">최대낙폭</th>
+        <th class="num">샤프</th><th class="num">보유비중</th><th class="num">보유 대비</th></tr></thead>
+      <tbody>${stratRows}</tbody>
+    </table></div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:9px;line-height:1.7">
+      샤프 = 출렁임 1만큼 감수하고 얻은 수익. 높을수록 "마음 편하게 번" 것.
+      거래비용·세금·슬리피지는 넣지 않았으므로 자주 사고파는 전략일수록 실제 성적은 이보다 나쁩니다.
+    </div>`;
+  document.getElementById('modal').classList.add('open');
+  document.body.classList.add('modal-open');
+}
+
+/* ══════════════ 4. 전략 비교 ══════════════ */
+function renderStrategy() {
+  const rows = (D.strategy_rank || []);
+  const bh = rows.find(r => r.key === 'bh');
+  const maxC = Math.max(1, ...rows.map(r => Math.abs(r.cagr ?? 0)));
+
+  document.getElementById('view-strategy').innerHTML = `
+    <div class="note" style="margin-bottom:18px">
+      🎯 <b>"남들이 하는 것 중 뭐가 제일 효과 있었나"</b>에 답하려고, 널리 알려진 매매 룰 ${rows.length}가지를
+      <b>같은 30개 종목·같은 기간</b>에 똑같이 태웠습니다. 종목별 결과의 평균이며,
+      <b>거래비용·세금은 반영하지 않았습니다</b>(자주 사고파는 전략에 유리하게 나오는 편향).
+    </div>
+    <div class="card">
+      <div class="card-header"><div>
+        <div class="card-title">⚔️ 전략 순위 (샤프 = 위험 대비 수익)</div>
+        <div class="card-sub">${esc(D.method?.backtest || '')}</div>
+      </div></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>#</th><th>전략</th><th>누가 쓰나</th><th class="num">연수익</th>
+          <th class="num">최대낙폭</th><th class="num">샤프</th><th class="num">월간승률</th>
+          <th class="num">보유비중</th><th class="num">보유 대비</th></tr></thead>
+        <tbody>${rows.map((r, i) => `<tr>
+          <td><b>${i + 1}</b></td>
+          <td><b>${esc(r.name)}</b></td>
+          <td style="color:var(--muted);font-size:12px;white-space:normal">${esc(r.popular)}</td>
+          <td class="num ${cls(r.cagr)}">${n2(r.cagr)}%</td>
+          <td class="num ${r.mdd < 0 ? 'neg' : ''}">${n2(r.mdd)}%</td>
+          <td class="num"><b>${n2(r.sharpe)}</b></td>
+          <td class="num">${n2(r.winrate)}%</td>
+          <td class="num">${n2(r.exposure)}%</td>
+          <td class="num ${cls(r.vs_bh)}">${r.key === 'bh' ? '기준' : sgn(r.vs_bh) + '%p'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 연수익 비교</div></div>
+      ${rows.slice().sort((a, b) => (b.cagr ?? 0) - (a.cagr ?? 0)).map(r => `<div class="rank-row" style="grid-template-columns:1fr 240px 62px">
+        <div class="rank-name">${esc(r.name)}</div>
+        <div class="bar-wrap"><div class="bar" style="width:${Math.abs(r.cagr ?? 0) / maxC * 100}%;background:${(r.cagr ?? 0) >= 0 ? '#16a34a' : '#dc2626'}"></div></div>
+        <div class="rank-score" style="color:${(r.cagr ?? 0) >= 0 ? '#16a34a' : '#dc2626'}">${n2(r.cagr)}%</div>
+      </div>`).join('')}
+    </div>
+    ${rows.map(r => `<div class="card">
+      <div class="card-header">
+        <div><div class="card-title">${esc(r.name)}</div>
+          <div class="card-sub">${esc(r.popular)}${r.degraded ? ` · <b style="color:#d97706">${esc(r.degraded)}</b>` : ''}</div></div>
+        <div style="text-align:right"><div style="font-size:24px;font-weight:800">${n2(r.sharpe)}</div>
+          <div style="font-size:11px;color:var(--muted)">샤프</div></div>
+      </div>
+      <div class="kid"><span class="kid-tag">초등학생용</span>${esc(r.kid)}
+        ${bh && r.key !== 'bh' ? `<br><br>결과: 그냥 사서 들고 있는 것보다 연 <b>${sgn(r.vs_bh)}%p</b>
+        ${(r.vs_bh ?? 0) >= 0 ? '더 벌었고' : '덜 벌었고'}, 대신 주식을 들고 있던 시간은 <b>${n2(r.exposure)}%</b>였어요
+        (나머지 시간은 현금). 가장 크게 깨졌을 때 <b>${n2(r.mdd)}%</b>까지 내려갔어요.` : ''}
+      </div>
+    </div>`).join('')}`;
+}
+
+/* ══════════════ 5. 용어 사전 ══════════════ */
+function renderGlossary() {
+  const terms = [
+    ['주가', '회사를 아주 잘게 쪼갠 조각(주식) 하나의 값. 그 회사가 앞으로 돈을 잘 벌 것 같으면 사람들이 사려고 해서 값이 올라요.'],
+    ['인플레이션', '물건 값이 전체적으로 오르는 것. 같은 1000원으로 살 수 있는 과자가 줄어드는 거예요.'],
+    ['디플레이션', '반대로 물건 값이 계속 내리는 것. 좋아 보이지만, 사람들이 "더 싸질 때까지 기다리자"며 안 사서 회사가 망하고 어른들이 일자리를 잃어요.'],
+    ['금리(이자)', '돈을 빌린 값. 금리가 오르면 빚이 있는 회사와 집 산 사람이 힘들어지고, 은행에 돈을 넣어두는 게 더 매력적이 돼서 주식에서 돈이 빠져요.'],
+    ['실질금리', '이자에서 물가 오른 만큼을 뺀 "진짜 이자". 이자 5% 받아도 물가가 5% 오르면 실제로는 번 게 없어요.'],
+    ['β(베타)', '어떤 숫자가 한 칸 움직일 때 주가가 몇 % 움직였는지. 이 페이지에서는 "한 칸 = 1표준편차(평소보다 큰 움직임)"로 통일했어요.'],
+    ['R²(설명력)', '주가가 움직인 이유 중 이 규칙이 설명하는 몫. 3%면 나머지 97%는 다른 이유라는 뜻이라 "규칙 하나만 믿으면 안 된다"는 경고예요.'],
+    ['t값', '이 관계가 우연히 생긴 걸까를 재는 숫자. 보통 2를 넘으면 "우연으로 보기 어렵다"고 봐요.'],
+    ['적중률', '그 숫자가 크게 움직인 주에, 주가가 이론이 말한 방향으로 간 비율. 50%면 동전 던지기와 같아요.'],
+    ['CAGR(연수익)', '몇 년치 성적을 "매년 몇 % 씩 불어난 셈"으로 바꾼 값.'],
+    ['MDD(최대낙폭)', '가장 높았던 때에서 가장 낮았던 때까지 얼마나 떨어졌나. −50%면 반토막을 견뎌야 했다는 뜻이에요.'],
+    ['샤프지수', '출렁임 1만큼을 견디고 받은 수익. 같은 돈을 벌어도 덜 무서웠으면 이 숫자가 높아요. 1을 넘으면 꽤 좋은 편.'],
+    ['백테스트', '"과거에 이 규칙대로 했으면 어땠을까"를 컴퓨터로 되감아 보는 것. 과거에 잘 됐다고 미래에도 되는 건 아니에요.'],
+    ['VIX', '앞으로 한 달 시장이 얼마나 출렁일지에 대한 사람들의 예상. "공포지수"라고 불러요.'],
+    ['장단기 금리차', '10년짜리 이자 − 2년짜리 이자. 이게 마이너스가 되면(역전) 역사적으로 1~2년 뒤 경기 침체가 온 적이 많았어요.'],
+  ];
+  document.getElementById('view-glossary').innerHTML = `
+    <div class="note" style="margin-bottom:18px">이 페이지에 나오는 모든 단어를 초등학생 눈높이로 풀었습니다.</div>
+    ${terms.map(([k, v]) => `<div class="card" style="padding:16px 20px">
+      <div class="card-title" style="margin-bottom:7px">${esc(k)}</div>
+      <div style="font-size:13.5px;line-height:1.8;color:#334155">${esc(v)}</div>
+    </div>`).join('')}`;
+}
+
+/* ══════════════ 6. 방법론 ══════════════ */
+function renderMethod() {
+  document.getElementById('view-method').innerHTML = `
+    <div class="warn">
+      ⚠️ <b>${esc(D.disclaimer || '')}</b><br>
+      이 페이지는 "어떤 종목을 사라"고 말하지 않습니다. 오직 <b>"과거에 어떤 이론이 이 주가들을 얼마나 설명했나"</b>를
+      숫자로 잰 결과만 보여줍니다. 상관관계가 있다고 인과관계가 있는 것도 아니고, 과거에 맞았다고 앞으로 맞는 것도 아닙니다.
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔬 어떻게 계산했나</div></div>
+      <div class="dl" style="grid-template-columns:110px 1fr">
+        <dt>회귀분석</dt><dd>${esc(D.method?.regression || '')}</dd>
+        <dt>적합도 점수</dt><dd>${esc(D.method?.score || '')}</dd>
+        <dt>백테스트</dt><dd>${esc(D.method?.backtest || '')}</dd>
+        <dt>주가 출처</dt><dd>${esc(D.method?.sources || '')}</dd>
+        <dt>폴백 주의</dt><dd>${esc(D.method?.naver_caveat || '')}</dd>
+        <dt>이번 수집</dt><dd>${Object.entries(D.source_summary || {}).map(([k, v]) => esc(k) + ' ' + v + '종목').join(' · ') || '—'}</dd>
+        <dt>매크로 출처</dt><dd>FRED (미 세인트루이스 연준) — API 키 없이 CSV 공개 배포</dd>
+        <dt>갱신 주기</dt><dd>매일 06:30 KST · GitHub Actions <code>update-stocks.yml</code></dd>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🚧 알려진 한계 (읽어주세요)</div></div>
+      <ul style="font-size:13.5px;line-height:2;padding-left:20px;color:#334155">
+        <li><b>거래비용·세금 미반영</b> — 자주 사고파는 전략(RSI, 변동성 타깃)은 실제로는 표시된 성적보다 나쁩니다.</li>
+        <li><b>생존 편향</b> — 지금 유명한 회사만 골랐습니다. 그 사이 망한 회사는 표본에 없어서 성적이 실제보다 좋아 보입니다.</li>
+        <li><b>시차 문제</b> — 한국 장은 미국 장보다 먼저 닫습니다. 주간 데이터로 뭉개서 완화했지만 완전히 해결되진 않습니다.</li>
+        <li><b>단일 인자 회귀</b> — 이론들끼리 서로 겹칩니다(예: VIX와 신용스프레드는 같이 움직임). 각 이론을 따로 재기 때문에 겹치는 몫이 중복 계산됩니다.</li>
+        <li><b>표본 기간 의존</b> — 최근 3년은 고물가·고금리 국면이었습니다. 다른 국면에서는 순위가 완전히 바뀔 수 있습니다.</li>
+        <li><b>상장 기간이 짧은 종목</b>(두산로보틱스 등)은 관측치가 부족해 일부 이론이 계산되지 않거나 신뢰도가 낮습니다.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🛠️ 늘리는 법</div></div>
+      <div style="font-size:13.5px;line-height:2;color:#334155">
+        종목 추가 → <code>scripts/fetch-stocks.js</code> 의 <code>UNIVERSE</code> 배열<br>
+        이론 추가 → 같은 파일 <code>THEORIES</code> 배열 (FRED 시리즈 ID + 예상 부호 + 쉬운 설명)<br>
+        전략 추가 → <code>STRATEGY_DEFS</code> + <code>buildWeights()</code> 의 <code>case</code> 하나<br>
+        수식 검증 → <code>node scripts/test-stocks-math.js</code> (합성 데이터 46개 검사)
+      </div>
+    </div>`;
+}
+
+/* ══════════════ 네비게이션 ══════════════ */
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.onclick = () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    const v = item.dataset.view;
+    document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+    document.getElementById('view-' + v).classList.add('active');
+    document.getElementById('pageTitle').textContent = TITLES[v];
+    document.getElementById('sidebar').classList.remove('open');
+    window.scrollTo(0, 0);
+  };
+});
+document.getElementById('hamb').onclick = () => document.getElementById('sidebar').classList.toggle('open');
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.classList.remove('modal-open');
+}
+document.getElementById('modal').onclick = e => { if (e.target.id === 'modal') closeModal(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+load();
+</script>
+</body>
+</html>
