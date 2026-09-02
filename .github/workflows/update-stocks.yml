@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '30 21 * * *'   # 매일 06:30 KST (UTC 21:30 전날)
   workflow_dispatch:          # 수동 실행 버튼
+  # [임시] 병합 전에 실제 API로 도는지 확인하기 위한 트리거. 확인 후 제거할 것.
+  # data/** 는 제외 — 이 워크플로가 커밋하는 경로라 재실행 고리를 만들지 않기 위함
+  # (GITHUB_TOKEN 으로 푸시한 커밋은 원래 워크플로를 다시 트리거하지 않지만 안전장치로 둔다)
+  push:
+    branches: ['claude/stock-investment-discussion-nkvemz']
+    paths-ignore: ['data/**']
 
 jobs:
   update:
