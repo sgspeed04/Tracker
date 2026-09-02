@@ -297,6 +297,14 @@ installFetch();
     // 프록시 경로로 받아도 심어둔 관계는 그대로 복원되어야 한다
     const auto = P.stocks.filter(s => s.theme === '자동차');
     ok(auto.every(s => s.best3[0] === 'vix'), '자동차 테마는 프록시 VIX 로도 정답 이론 1위 유지');
+
+    // 금리차(T10Y2Y)는 대체 지표가 없다. 그래도 매크로 필터가 0% 로 죽지 않고
+    // VIX+추세만으로 돌아가야 한다 (실제 실행에서 0% 가 나와 고친 부분).
+    const mf = P.strategy_rank.find(s => s.key === 'macro');
+    ok(!!mf, '매크로 필터가 결과에 남아있음');
+    ok(mf.exposure > 0, `금리차 없이도 보유비중이 0이 아님 (실제 ${mf.exposure}%)`);
+    ok(!!mf.degraded, `축소 계산 사실이 표기됨 ("${mf.degraded}")`);
+    ok(P.stocks.every(s => s.strategies.macro), '전 종목에 매크로 필터 결과 존재');
   }
 
   console.log(`\n${'─'.repeat(60)}\n결과: ${pass} 통과 / ${fail} 실패\n`);

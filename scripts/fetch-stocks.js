@@ -565,6 +565,9 @@ function buildWeights(key, dates, closes, macroDaily) {
   // 매크로 필터용: 날짜에 맞춘 인자 배열 (없는 날은 null)
   const vixArr = key === 'macro' ? dates.map((d) => macroDaily.vix.get(d) ?? null) : null;
   const curveArr = key === 'macro' ? dates.map((d) => macroDaily.curve.get(d) ?? null) : null;
+  // 금리차(T10Y2Y)는 FRED 전용이라 대체 지표가 없다. 그 지표가 통째로 없을 때
+  // 조건식이 영원히 거짓이 되어 보유비중 0%가 되는 것을 막고, VIX+추세만으로 돌린다.
+  const hasCurve = key === 'macro' && curveArr.some((v) => v != null);
 
   // 12-1 모멘텀 / 매크로 필터용: 월초 여부
   const isMonthStart = dates.map((d, i) => i === 0 || d.slice(0, 7) !== dates[i - 1].slice(0, 7));
@@ -612,12 +615,12 @@ function buildWeights(key, dates, closes, macroDaily) {
         // 'VIX < 20' 같은 절대 임계값은 국면이 바뀌면 아예 안 걸리거나 늘 걸린다
         // (고금리 국면에선 금리차가 계속 음수라 신호가 영구히 죽는다).
         // 그래서 "최근 1년 대비 어느 위치인가"라는 상대 기준을 쓴다.
-        const vp = trailingPct(vixArr, i, 252);      // 낮을수록 평온
-        const cp = trailingPct(curveArr, i, 252);    // 낮을수록 침체 경보
+        const vp = trailingPct(vixArr, i, 252);                  // 낮을수록 평온
+        const cp = hasCurve ? trailingPct(curveArr, i, 252) : null; // 낮을수록 침체 경보
         const m = sma(closes, i, 200);
         const trendOk = m != null && closes[i] > m;
-        if (vp == null || cp == null) { w[i] = i > 0 ? w[i - 1] : 0; break; }
-        w[i] = (vp <= 0.5 && cp >= 0.2 && trendOk) ? 1 : 0;
+        if (vp == null || (hasCurve && cp == null)) { w[i] = i > 0 ? w[i - 1] : 0; break; }
+        w[i] = (vp <= 0.5 && (!hasCurve || cp >= 0.2) && trendOk) ? 1 : 0;
         break;
       }
       default: w[i] = 0;
@@ -731,6 +734,8 @@ async function main() {
     // 전략 백테스트
     const strategies = {};
     for (const sd of STRATEGY_DEFS) {
+      // VIX 조차 없으면 매크로 필터는 계산할 수 없다 — 0% 결과를 내놓느니 아예 뺀다
+      if (sd.key === 'macro' && !macroDaily.vix.size) continue;
       const w = buildWeights(sd.key, dates, closes, macroDaily);
       const ev = evaluate(dates, closes, w);
       if (ev) { delete ev.equity; strategies[sd.key] = ev; }
@@ -794,6 +799,7 @@ async function main() {
   // 전략 랭킹 (종목 평균)
   const stratAgg = STRATEGY_DEFS.map((sd) => {
     const rows = stocks.map((s) => s.strategies[sd.key]).filter(Boolean);
+    if (!rows.length) return null;
     const bh = stocks.map((s) => s.strategies.bh).filter(Boolean);
     const avg = (f) => rows.length ? round(rows.reduce((a, r) => a + (r[f] ?? 0), 0) / rows.length, 2) : null;
     const bhCagr = bh.length ? bh.reduce((a, r) => a + (r.cagr ?? 0), 0) / bh.length : 0;
@@ -802,8 +808,10 @@ async function main() {
       cagr: avg('cagr'), mdd: avg('mdd'), sharpe: avg('sharpe'),
       winrate: avg('winrate'), exposure: avg('exposure'),
       vs_bh: rows.length ? round(avg('cagr') - bhCagr, 2) : null,
+      degraded: sd.key === 'macro' && !macroDaily.curve.size
+        ? '금리차(FRED 전용) 없이 VIX+추세만으로 계산됨' : null,
     };
-  }).sort((a, b) => (b.sharpe ?? -99) - (a.sharpe ?? -99));
+  }).filter(Boolean).sort((a, b) => (b.sharpe ?? -99) - (a.sharpe ?? -99));
 
   // 매크로 현황판
   const macro = THEORIES.map((th) => {

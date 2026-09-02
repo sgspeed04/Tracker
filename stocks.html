@@ -580,7 +580,7 @@ function renderStrategy() {
     ${rows.map(r => `<div class="card">
       <div class="card-header">
         <div><div class="card-title">${esc(r.name)}</div>
-          <div class="card-sub">${esc(r.popular)}</div></div>
+          <div class="card-sub">${esc(r.popular)}${r.degraded ? ` · <b style="color:#d97706">${esc(r.degraded)}</b>` : ''}</div></div>
         <div style="text-align:right"><div style="font-size:24px;font-weight:800">${n2(r.sharpe)}</div>
           <div style="font-size:11px;color:var(--muted)">샤프</div></div>
       </div>
