@@ -25,6 +25,8 @@ const path = require('path');
 const OUT_PATH = process.env.STOCKS_OUT || path.join(__dirname, '..', 'data', 'stocks.json');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
+const REQ_TIMEOUT = 15000;    // 요청 하나당 상한 (헤더+본문)
+const BUDGET_MS = 15 * 60e3; // 수집 전체 시간 예산 — 넘으면 남은 종목을 포기하고 진행
 const YEARS = 5;              // 가격 수집 기간
 const REG_WEEKS = 156;        // 회귀 분석 창 (3년, 주간)
 const MIN_WEEKS = 60;         // 회귀에 필요한 최소 관측치
@@ -164,22 +166,43 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const warnings = [];
 function warn(msg) { warnings.push(msg); console.warn('  ! ' + msg); }
 
-async function getText(url, { retries = 3, headers = {} } = {}) {
+async function getText(url, { retries = 2, headers = {}, timeout = REQ_TIMEOUT } = {}) {
   let lastErr;
   for (let i = 0; i < retries; i++) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), timeout);
     try {
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), 30000);
       const res = await fetch(url, { headers: { 'User-Agent': UA, ...headers }, signal: ctl.signal });
-      clearTimeout(timer);
       if (!res.ok) throw new Error('HTTP ' + res.status);
+      // 본문 수신까지 같은 타임아웃 안에 끝나야 한다. 헤더만 보내고 멈추는 서버에
+      // 무한정 매달리지 않도록 clearTimeout 을 finally 로 미룬다.
       return await res.text();
     } catch (e) {
-      lastErr = e;
-      if (i < retries - 1) await sleep(1500 * (i + 1));
+      lastErr = e.name === 'AbortError' ? new Error(`타임아웃 ${timeout / 1000}초`) : e;
+      if (i < retries - 1) await sleep(1200 * (i + 1));
+    } finally {
+      clearTimeout(timer);
     }
   }
   throw lastErr;
+}
+
+/* ── 소스 회로차단기 ──
+ * 한 소스가 통째로 막히면(러너 IP 차단 등) 종목마다 재시도하느라 수집이 몇십 분씩
+ * 늘어진다. 그 소스에서 성공이 한 건도 없고 실패가 쌓이면 이후 종목은 즉시 건너뛴다.
+ * 일부 종목만 막히는 경우(예: Yahoo 가 한국 종목만 차단)에는 이미 성공 이력이 있으므로
+ * 차단되지 않는다.
+ */
+const sourceHealth = {};
+const DEAD_AFTER = { fred: 3 };          // 지표가 9개뿐이라 FRED 는 더 빨리 포기
+const SOURCE_DEAD_AFTER = 5;
+function noteSource(label, ok) {
+  const h = (sourceHealth[label] ||= { ok: 0, fail: 0 });
+  if (ok) h.ok++; else h.fail++;
+}
+function isSourceDead(label) {
+  const h = sourceHealth[label];
+  return !!h && h.ok === 0 && h.fail >= (DEAD_AFTER[label] ?? SOURCE_DEAD_AFTER);
 }
 
 const fmtDate = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -275,11 +298,13 @@ function parseNaverSise(raw) {
 async function fetchPrices(ticker) {
   const errs = [];
   const attempt = async (label, fn) => {
+    if (isSourceDead(label)) { errs.push(`${label}: 연속 실패로 건너뜀`); return null; }
     try {
       const s = await fn(ticker);
-      if (s.length >= 120) return { series: s, source: label };
+      if (s.length >= 120) { noteSource(label, true); return { series: s, source: label }; }
       throw new Error(`데이터 부족(${s.length}일)`);
     } catch (e) {
+      noteSource(label, false);
       errs.push(`${label}: ${e.message}`);
       return null;
     }
@@ -572,18 +597,31 @@ async function main() {
   const factors = {};
   const seriesIds = [...new Set(THEORIES.map((t) => t.series))];
   for (const id of seriesIds) {
+    if (isSourceDead('fred')) { warn(`FRED ${id}: 연속 실패로 건너뜀`); continue; }
     try {
       factors[id] = await fetchFred(id);
+      noteSource('fred', true);
       console.log(`  · ${id}: ${factors[id].length}건 (최근 ${factors[id][factors[id].length - 1].d})`);
     } catch (e) {
+      noteSource('fred', false);
       warn(`FRED ${id} 수집 실패: ${e.message}`);
     }
     await sleep(300);
   }
+  // 매크로 인자가 하나도 없으면 이론 검증이 불가능하다 — 빈 결과를 쓰느니 실패시켜
+  // 기존 data/stocks.json 을 그대로 보존한다.
+  if (!Object.keys(factors).length) {
+    throw new Error('매크로 인자를 한 건도 못 받았습니다 (FRED 도달 불가) — 이론 검증 불가');
+  }
 
   console.log('▶ 주가 수집');
   const priced = [];
+  const deadline = Date.now() + BUDGET_MS;
   for (const s of [...UNIVERSE, ...BENCHMARKS.map((b) => ({ ...b, theme: '__bench__', rank: 0 }))]) {
+    if (Date.now() > deadline) {
+      warn(`시간 예산 ${BUDGET_MS / 60e3}분 초과 — 남은 종목 수집을 중단합니다`);
+      break;
+    }
     try {
       const { series, source } = await fetchPrices(s.t);
       priced.push({ ...s, series, source });
@@ -591,7 +629,7 @@ async function main() {
     } catch (e) {
       warn(`${s.t} (${s.name}) 주가 수집 실패: ${e.message}`);
     }
-    await sleep(400);
+    await sleep(250);
   }
   if (!priced.length) throw new Error('주가를 한 건도 못 받았습니다 — 기존 데이터를 유지합니다');
 
@@ -718,6 +756,10 @@ async function main() {
     };
   }).filter(Boolean);
 
+  for (const [label, h] of Object.entries(sourceHealth)) {
+    if (isSourceDead(label)) warn(`${label} 소스가 응답하지 않아 ${h.fail}회 실패 후 건너뛰었습니다`);
+  }
+
   // 어떤 소스가 쓰였는지 집계 — 폴백이 돌면 데이터 성격이 달라지므로 화면에 노출한다
   const sourceSummary = {};
   for (const p of priced) sourceSummary[p.source] = (sourceSummary[p.source] || 0) + 1;
@@ -778,4 +820,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, ols, trailingPct, parseNaverSise, fetchNaver, fetchPrices, isKoreanTicker, toWeekly, testTheory, evaluate, buildWeights, fitScore, rsi14, sma, forwardFill, fetchFred, fetchYahoo, THEORIES, STRATEGY_DEFS, UNIVERSE, BENCHMARKS, OUT_PATH };
+module.exports = { main, ols, trailingPct, getText, isSourceDead, noteSource, sourceHealth, parseNaverSise, fetchNaver, fetchPrices, isKoreanTicker, toWeekly, testTheory, evaluate, buildWeights, fitScore, rsi14, sma, forwardFill, fetchFred, fetchYahoo, THEORIES, STRATEGY_DEFS, UNIVERSE, BENCHMARKS, OUT_PATH };

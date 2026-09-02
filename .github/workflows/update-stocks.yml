@@ -14,6 +14,7 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 25      # 소스가 막혀도 러너 시간을 무한정 태우지 않도록
     permissions:
       contents: write
 
@@ -32,6 +33,10 @@ jobs:
 
       - name: 파이프라인 엔드투엔드 검증 (가짜 API 응답 42종)
         run: node scripts/test-stocks-e2e.js
+
+      - name: 소스 도달성 진단
+        continue-on-error: true
+        run: node scripts/probe-sources.js
 
       - name: 주가·매크로 수집 및 이론 검증
         run: node scripts/fetch-stocks.js

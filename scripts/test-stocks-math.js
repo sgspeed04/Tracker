@@ -221,5 +221,48 @@ console.log('\n[16] 한국 종목 판별 — 네이버 폴백 대상');
   ok(M.isKoreanTicker('^GSPC')===false, 'S&P500 지수는 제외');
 }
 
+/* 아래 두 묶음은 비동기라 IIFE 로 감싼다 */
+(async () => {
+
+console.log('\n[17] getText — 헤더만 오고 본문이 멈추면 타임아웃으로 끊는가');
+{
+  // 실제로 겪은 버그: clearTimeout 이 헤더 도착 시점에 걸려 있어 본문 수신이
+  // 무한정 매달렸다. 이 테스트는 그 회귀를 막는다.
+  const orig = globalThis.fetch;
+  globalThis.fetch = async (_url, opts) => ({
+    ok: true, status: 200,
+    text: () => new Promise((_, rej) => {
+      opts.signal.addEventListener('abort',
+        () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    }),
+  });
+  const t0 = Date.now();
+  let msg = '';
+  try { await M.getText('https://example.test/x', { retries: 1, timeout: 300 }); }
+  catch (e) { msg = e.message; }
+  const el = Date.now() - t0;
+  globalThis.fetch = orig;
+  ok(msg.includes('타임아웃'), `본문 지연도 타임아웃으로 잡힘 (실제 "${msg}")`);
+  ok(el < 2000, `타임아웃 300ms 뒤 즉시 종료 (실제 ${el}ms)`);
+}
+
+console.log('\n[18] 소스 회로차단기 — 통째로 죽은 소스만 건너뛴다');
+{
+  for (const k of Object.keys(M.sourceHealth)) delete M.sourceHealth[k];
+  // 성공이 한 번도 없이 5회 실패 → 죽은 것으로 판정
+  for (let i = 0; i < 4; i++) M.noteSource('deadsrc', false);
+  ok(M.isSourceDead('deadsrc')===false, '4회 실패까지는 계속 시도');
+  M.noteSource('deadsrc', false);
+  ok(M.isSourceDead('deadsrc')===true, '5회 실패하면 이후 건너뜀');
+  // 성공 이력이 있으면 일부 종목이 실패해도 죽이지 않는다 (Yahoo 가 한국 종목만 막는 경우)
+  M.noteSource('partial', true);
+  for (let i = 0; i < 20; i++) M.noteSource('partial', false);
+  ok(M.isSourceDead('partial')===false, '성공 이력이 있으면 부분 실패로는 안 죽음');
+  ok(M.isSourceDead('없는소스')===false, '기록 없는 소스는 살아있는 것으로 취급');
+  for (const k of Object.keys(M.sourceHealth)) delete M.sourceHealth[k];
+}
+
 console.log(`\n${'─'.repeat(46)}\n결과: ${pass} 통과 / ${fail} 실패\n`);
 process.exit(fail ? 1 : 0);
+
+})();

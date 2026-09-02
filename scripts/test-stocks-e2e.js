@@ -127,6 +127,7 @@ function installFetch(opts = {}) {
     if (u.includes('query1.finance.yahoo.com')) {
       calls.yahoo++;
       const tk = decodeURIComponent(u.split('/chart/')[1].split('?')[0]);
+      if (opts.blockYahooAll) return { ok: false, status: 403, text: async () => 'Forbidden' };
       if (opts.blockYahooKR && /\.(KS|KQ)$|\^KS11/.test(tk)) {
         return { ok: false, status: 403, text: async () => 'Forbidden' };
       }
@@ -138,7 +139,16 @@ function installFetch(opts = {}) {
           indicators: { quote: [{ close: arr }], adjclose: [{ adjclose: arr }] } }] } }) };
     }
 
-    calls.stooq++;
+    if (u.includes('stooq.com')) {
+      calls.stooq++;
+      if (!opts.serveStooq) return { ok: false, status: 403, text: async () => '' };
+      const sym = decodeURIComponent(u.match(/s=([^&]+)/)[1]).replace(/\.us$/, '').toUpperCase();
+      const tk = prices[sym] ? sym : (sym === '^SPX' ? '^GSPC' : null);
+      if (!tk) return { ok: false, status: 404, text: async () => '' };
+      const rows = ['Date,Open,High,Low,Close,Volume'];
+      for (let i = 0; i < N; i++) rows.push(`${days[i]},0,0,0,${prices[tk][i].toFixed(4)},100`);
+      return { ok: true, status: 200, text: async () => rows.join('\n') };
+    }
     return { ok: false, status: 403, text: async () => '' };
   };
 }
@@ -218,6 +228,7 @@ installFetch();
 
   console.log('\n[H] Yahoo 가 한국 종목을 막았을 때 네이버로 폴백하는가');
   {
+    for (const k of Object.keys(M.sourceHealth)) delete M.sourceHealth[k];
     installFetch({ blockYahooKR: true });
     await M.main();
     const F = JSON.parse(fs.readFileSync(M.OUT_PATH, 'utf8'));
@@ -237,6 +248,25 @@ installFetch();
     const b = kr.find(s => s.ticker === '005930.KS');
     ok(Math.abs(a.last - b.last) / a.last < 0.01,
        `같은 원본이면 Yahoo/네이버 결과가 일치 (${a.last} vs ${b.last})`);
+    ok(M.isSourceDead('yahoo') === false,
+       'Yahoo 는 미국 종목에서 성공했으므로 회로차단기가 끄지 않음');
+  }
+
+  console.log('\n[I] Yahoo 가 통째로 죽었을 때 — 회로차단기 + 전면 폴백');
+  {
+    for (const k of Object.keys(M.sourceHealth)) delete M.sourceHealth[k];
+    installFetch({ blockYahooAll: true, serveStooq: true });
+    await M.main();
+    const G = JSON.parse(fs.readFileSync(M.OUT_PATH, 'utf8'));
+    ok(M.isSourceDead('yahoo') === true, 'Yahoo 가 죽은 소스로 판정됨');
+    // 종목 5개에서 실패하면 차단 → HTTP 호출은 5종목 × 재시도 2회 = 10회.
+    // 차단이 없으면 32종목 × 2회 = 64회가 나간다.
+    ok(calls.yahoo <= 12, `Yahoo 호출이 조기 차단됨 (실제 ${calls.yahoo}회, 차단 없으면 64회)`);
+    ok(G.stocks.length === 30, `폴백만으로 30종목 확보 (실제 ${G.stocks.length})`);
+    ok(G.source_summary.naver === 16, `한국 16건 네이버 (실제 ${G.source_summary.naver})`);
+    ok(G.source_summary.stooq === 16, `미국 16건 Stooq (실제 ${G.source_summary.stooq})`);
+    ok(G.warnings.some(w => w.includes('yahoo')), '경고에 Yahoo 차단 사실이 기록됨');
+    ok(G.overall_rank.all.length >= 8, '폴백 데이터로도 이론 순위가 산출됨');
   }
 
   console.log(`\n${'─'.repeat(60)}\n결과: ${pass} 통과 / ${fail} 실패\n`);
