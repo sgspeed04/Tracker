@@ -80,6 +80,10 @@ function makePrice(ticker, theme, drift) {
 }
 for (const u of M.UNIVERSE) makePrice(u.t, u.theme, 0.0004 + 0.0002 * (3 - u.rank));
 for (const b of M.BENCHMARKS) makePrice(b.t, '__none__', 0.0003);
+// Yahoo 대체 매크로 지표 — 원래 FRED 시리즈와 같은 경로를 쓰게 해서
+// 프록시로 받아도 같은 관계가 복원되는지 볼 수 있게 한다
+const PROXY_OF = { '^VIX': 'VIXCLS', 'CL=F': 'DCOILWTICO', 'KRW=X': 'DEXKOUS', 'DX-Y.NYB': 'DTWEXBGS' };
+for (const [tk, fid] of Object.entries(PROXY_OF)) prices[tk] = factorPaths[fid].slice();
 
 /* ── 가짜 fetch ── */
 let calls = { yahoo: 0, fred: 0, stooq: 0, naver: 0 };
@@ -103,8 +107,13 @@ function installFetch(opts = {}) {
   globalThis.fetch = async (url) => {
     const u = String(url);
 
-    if (u.includes('fredgraph.csv')) {
+    if (u.includes('fredgraph.csv') || u.includes('api.stlouisfed.org')) {
       calls.fred++;
+      if (opts.blockFred) {
+        const err = new Error('The operation was aborted');
+        err.name = 'AbortError';
+        throw err;
+      }
       const id = u.match(/id=([A-Z0-9]+)/)[1];
       const p = factorPaths[id];
       if (!p) return { ok: false, status: 404, text: async () => '' };
@@ -267,6 +276,27 @@ installFetch();
     ok(G.source_summary.stooq === 16, `미국 16건 Stooq (실제 ${G.source_summary.stooq})`);
     ok(G.warnings.some(w => w.includes('yahoo')), '경고에 Yahoo 차단 사실이 기록됨');
     ok(G.overall_rank.all.length >= 8, '폴백 데이터로도 이론 순위가 산출됨');
+  }
+
+  console.log('\n[J] FRED 가 막혔을 때 — Yahoo 대체지표로 일부 이론 유지');
+  {
+    for (const k of Object.keys(M.sourceHealth)) delete M.sourceHealth[k];
+    installFetch({ blockFred: true });
+    await M.main();
+    const P = JSON.parse(fs.readFileSync(M.OUT_PATH, 'utf8'));
+    const keys = P.macro.map(m => m.key).sort();
+    ok(P.macro.length === 4, `대체 가능한 4개 지표만 남음 (실제 ${P.macro.length}: ${keys.join(',')})`);
+    ok(keys.join(',') === 'dollar,oil,usdkrw,vix', `살아남은 이론이 예상과 일치 (${keys.join(',')})`);
+    ok(P.macro.every(m => m.proxy), '남은 지표에 모두 대체지표 표기가 붙음');
+    ok(P.warnings.some(w => w.includes('검증 불가한 이론')),
+       '검증 못 한 이론을 경고로 알림');
+    ok(P.warnings.some(w => w.includes('FRED_API_KEY')), '복구 방법(FRED 키)을 안내');
+    ok(P.stocks.length === 30, `종목은 그대로 30개 (실제 ${P.stocks.length})`);
+    ok(P.stocks.every(s => s.fits.length >= 3), '남은 지표로도 종목별 이론 검증 수행');
+    ok(P.overall_rank.all.length === 4, `이론 순위도 4개로 산출 (실제 ${P.overall_rank.all.length})`);
+    // 프록시 경로로 받아도 심어둔 관계는 그대로 복원되어야 한다
+    const auto = P.stocks.filter(s => s.theme === '자동차');
+    ok(auto.every(s => s.best3[0] === 'vix'), '자동차 테마는 프록시 VIX 로도 정답 이론 1위 유지');
   }
 
   console.log(`\n${'─'.repeat(60)}\n결과: ${pass} 통과 / ${fail} 실패\n`);

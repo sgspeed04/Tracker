@@ -28,10 +28,10 @@ jobs:
           node-version: '20'
           # 외부 의존성 없음 — Node 내장 fetch 만 사용하므로 npm install 생략
 
-      - name: 수식 자체검증 (합성 데이터 58종)
+      - name: 수식 자체검증 (합성 데이터 71종)
         run: node scripts/test-stocks-math.js
 
-      - name: 파이프라인 엔드투엔드 검증 (가짜 API 응답 42종)
+      - name: 파이프라인 엔드투엔드 검증 (가짜 API 응답 59종)
         run: node scripts/test-stocks-e2e.js
 
       - name: 소스 도달성 진단
@@ -39,6 +39,10 @@ jobs:
         run: node scripts/probe-sources.js
 
       - name: 주가·매크로 수집 및 이론 검증
+        # fred.stlouisfed.org(CSV)는 러너에서 차단되므로 공식 API 키를 쓴다.
+        # 키가 없으면 Yahoo 대체 지표로 4개 이론만 검증된다.
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: node scripts/fetch-stocks.js
 
       - name: Commit if changed

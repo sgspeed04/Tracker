@@ -238,9 +238,11 @@ function renderDash() {
     const zone = m.pct3y >= 70 ? '최근 3년 중 <b>높은</b> 편' : m.pct3y <= 30 ? '최근 3년 중 <b>낮은</b> 편' : '평소 수준';
     const color = extreme ? '#d97706' : '#2563eb';
     return `<div class="stat">
-      <div class="stat-label">${esc(m.name)} <span style="color:#cbd5e1">·</span> ${esc(m.series)}</div>
+      <div class="stat-label">${esc(m.name)} <span style="color:#cbd5e1">·</span> ${esc(m.series)}${
+        m.proxy ? ` <span class="badge gray" title="${esc(m.proxy)}">대체지표</span>` : ''}</div>
       <div class="stat-value" style="color:${color}">${n2(m.value)}${esc(m.unit)}</div>
-      <div class="stat-sub">1개월 ${sgn(m.chg1m)} · ${dirWord}<br>${zone} (${m.pct3y ?? '—'}번째 백분위)${extreme ? ' <b style="color:#d97706">· 평소에서 크게 벗어남</b>' : ''}</div>
+      <div class="stat-sub">1개월 ${sgn(m.chg1m)} · ${dirWord}<br>${zone} (${m.pct3y ?? '—'}번째 백분위)${extreme ? ' <b style="color:#d97706">· 평소에서 크게 벗어남</b>' : ''}${
+        m.proxy ? `<br><span style="color:#d97706">원지표 대신 ${esc(m.proxy)}</span>` : ''}</div>
       <div class="gauge"><div class="gauge-fill" style="width:${m.pct3y ?? 0}%;background:${color}"></div></div>
     </div>`;
   }).join('');

@@ -314,8 +314,43 @@ async function fetchPrices(ticker) {
     || (() => { throw new Error(errs.join(' / ')); })();
 }
 
-/** FRED fredgraph.csv (API 키 불필요) → [{d, c}] */
+/* ── FRED ──
+ * 원래는 키가 필요 없는 fredgraph.csv 를 썼으나, **GitHub Actions 러너에서
+ * fred.stlouisfed.org 가 통째로 타임아웃**하는 것을 진단으로 확인했다
+ * (scripts/probe-sources.js). 반면 공식 API 호스트 api.stlouisfed.org 는
+ * 도달 가능하다(키 없이 호출하면 HTTP 400 이 돌아옴 = 네트워크는 뚫림).
+ * 그래서 FRED_API_KEY 가 있으면 공식 API 를, 없으면 기존 CSV 를 쓴다.
+ * 키는 https://fredaccount.stlouisfed.org/apikeys 에서 무료 발급.
+ */
+const FRED_KEY = process.env.FRED_API_KEY || '';
+
 async function fetchFred(seriesId) {
+  if (FRED_KEY) {
+    try { return await fetchFredApi(seriesId); }
+    catch (e) { /* 키가 잘못됐을 수 있으니 CSV 로도 한 번 시도 */ }
+  }
+  return fetchFredCsv(seriesId);
+}
+
+/** FRED 공식 API (api.stlouisfed.org, 무료 키 필요) */
+async function fetchFredApi(seriesId) {
+  const start = new Date(Date.now() - (YEARS + 1) * 365.25 * 864e5).toISOString().slice(0, 10);
+  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}`
+    + `&api_key=${FRED_KEY}&file_type=json&observation_start=${start}`;
+  const json = JSON.parse(await getText(url));
+  if (!Array.isArray(json.observations)) throw new Error(json.error_message || 'observations 없음');
+  const out = [];
+  for (const o of json.observations) {
+    const c = parseFloat(o.value);        // 결측은 '.' → NaN
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date) || !Number.isFinite(c)) continue;
+    out.push({ d: o.date, c });
+  }
+  if (!out.length) throw new Error('유효 관측치 0');
+  return out;
+}
+
+/** FRED fredgraph.csv (API 키 불필요, 단 러너에서는 차단됨) → [{d, c}] */
+async function fetchFredCsv(seriesId) {
   const csv = await getText(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}`);
   const lines = csv.trim().split('\n');
   if (lines.length < 50) throw new Error('CSV 너무 짧음');
@@ -331,6 +366,18 @@ async function fetchFred(seriesId) {
   if (!out.length) throw new Error('유효 관측치 0');
   return out;
 }
+
+/* ── FRED 가 막혔을 때 쓰는 Yahoo 대체 지표 ──
+ * 뜻과 크기가 충분히 가까운 것만 넣는다. 인플레이션·디플레이션 계열
+ * (기대인플레·실질금리·신용스프레드·정책불확실성)은 Yahoo 에 대응물이 없어
+ * FRED 키 없이는 검증할 수 없다.
+ */
+const MACRO_PROXY = {
+  VIXCLS:     { t: '^VIX',      note: '동일 지표(Yahoo 시세)' },
+  DCOILWTICO: { t: 'CL=F',      note: 'WTI 현물 대신 근월 선물' },
+  DEXKOUS:    { t: 'KRW=X',     note: '동일 환율(Yahoo 시세)' },
+  DTWEXBGS:   { t: 'DX-Y.NYB',  note: '광의 달러지수 대신 DXY(주요 6개 통화)' },
+};
 
 /* ────────────────────────────── 통계 ────────────────────────────── */
 
@@ -608,10 +655,30 @@ async function main() {
     }
     await sleep(300);
   }
+  // FRED 로 못 받은 지표는 Yahoo 대체 지표로 메운다 (가능한 것만)
+  const proxied = new Set();
+  for (const id of seriesIds) {
+    if (factors[id] || !MACRO_PROXY[id]) continue;
+    try {
+      const { series } = await fetchPrices(MACRO_PROXY[id].t);
+      factors[id] = series;
+      proxied.add(id);
+      console.log(`  · ${id}: ${series.length}건 (대체지표 ${MACRO_PROXY[id].t})`);
+    } catch (e) {
+      warn(`${id} 대체지표(${MACRO_PROXY[id].t}) 도 실패: ${e.message}`);
+    }
+    await sleep(250);
+  }
+  const missing = seriesIds.filter((id) => !factors[id]);
+  if (missing.length) {
+    warn(`대체 지표가 없어 검증 불가한 이론: ${THEORIES.filter((t) => missing.includes(t.series))
+      .map((t) => t.name).join(', ')} (FRED_API_KEY 를 등록하면 복구됩니다)`);
+  }
+
   // 매크로 인자가 하나도 없으면 이론 검증이 불가능하다 — 빈 결과를 쓰느니 실패시켜
   // 기존 data/stocks.json 을 그대로 보존한다.
   if (!Object.keys(factors).length) {
-    throw new Error('매크로 인자를 한 건도 못 받았습니다 (FRED 도달 불가) — 이론 검증 불가');
+    throw new Error('매크로 인자를 한 건도 못 받았습니다 (FRED·대체지표 모두 도달 불가) — 이론 검증 불가');
   }
 
   console.log('▶ 주가 수집');
@@ -748,6 +815,7 @@ async function main() {
     const pct = win.length ? (win.filter((v) => v <= last.c).length / win.length) * 100 : null;
     return {
       key: th.key, series: th.series, name: th.name, short: th.short,
+      proxy: proxied.has(th.series) ? MACRO_PROXY[th.series].note : null,
       date: last.d, value: round(last.c, 3),
       chg1m: round(last.c - (back(21) ?? last.c), 3),
       chg3m: round(last.c - (back(63) ?? last.c), 3),
@@ -820,4 +888,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, ols, trailingPct, getText, isSourceDead, noteSource, sourceHealth, parseNaverSise, fetchNaver, fetchPrices, isKoreanTicker, toWeekly, testTheory, evaluate, buildWeights, fitScore, rsi14, sma, forwardFill, fetchFred, fetchYahoo, THEORIES, STRATEGY_DEFS, UNIVERSE, BENCHMARKS, OUT_PATH };
+module.exports = { main, ols, trailingPct, getText, fetchFredApi, MACRO_PROXY, isSourceDead, noteSource, sourceHealth, parseNaverSise, fetchNaver, fetchPrices, isKoreanTicker, toWeekly, testTheory, evaluate, buildWeights, fitScore, rsi14, sma, forwardFill, fetchFred, fetchYahoo, THEORIES, STRATEGY_DEFS, UNIVERSE, BENCHMARKS, OUT_PATH };

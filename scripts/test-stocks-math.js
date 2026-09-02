@@ -246,6 +246,39 @@ console.log('\n[17] getText — 헤더만 오고 본문이 멈추면 타임아�
   ok(el < 2000, `타임아웃 300ms 뒤 즉시 종료 (실제 ${el}ms)`);
 }
 
+console.log('\n[18-A] fetchFredApi — 공식 API JSON 파싱');
+{
+  const orig = globalThis.fetch;
+  process.env.FRED_API_KEY = 'testkey';
+  globalThis.fetch = async () => ({ ok: true, status: 200, text: async () => JSON.stringify({
+    observations: [
+      { date: '2026-01-02', value: '12.47' },
+      { date: '2026-01-03', value: '.' },        // FRED 결측 표기
+      { date: '2026-01-06', value: '13.05' },
+      { date: 'bad',        value: '9.9' },
+    ] }) });
+  const r = await M.fetchFredApi('VIXCLS');
+  globalThis.fetch = orig;
+  ok(r.length===2, `결측('.')과 잘못된 날짜를 걸러 2건 (실제 ${r.length})`);
+  ok(r[0].d==='2026-01-02' && r[0].c===12.47, `값 파싱 정확 (${r[0].d}=${r[0].c})`);
+
+  globalThis.fetch = async () => ({ ok: true, status: 200,
+    text: async () => JSON.stringify({ error_code: 400, error_message: 'Bad Request' }) });
+  let msg=''; try { await M.fetchFredApi('X'); } catch(e){ msg=e.message; }
+  globalThis.fetch = orig;
+  ok(msg.includes('Bad Request'), `API 오류 메시지를 그대로 전달 (실제 "${msg}")`);
+}
+
+console.log('\n[18-B] 매크로 대체지표 — 뜻이 가까운 것만 등록되어 있는가');
+{
+  const px = M.MACRO_PROXY;
+  ok(px.VIXCLS?.t === '^VIX', 'VIX 는 Yahoo ^VIX 로 대체');
+  ok(px.DEXKOUS?.t === 'KRW=X', '원/달러는 KRW=X 로 대체');
+  ok(!px.T5YIE && !px.DFII10 && !px.BAA10Y && !px.USEPUINDXD,
+     '기대인플레·실질금리·신용스프레드·정책불확실성은 대응물이 없어 미등록');
+  ok(Object.values(px).every(v => v.note && v.note.length > 5), '모든 대체지표에 차이 설명이 붙어있음');
+}
+
 console.log('\n[18] 소스 회로차단기 — 통째로 죽은 소스만 건너뛴다');
 {
   for (const k of Object.keys(M.sourceHealth)) delete M.sourceHealth[k];
