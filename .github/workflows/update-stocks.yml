@@ -1,0 +1,50 @@
+name: 테마주 이론 검증 데이터 자동수집
+
+on:
+  schedule:
+    - cron: '30 21 * * *'   # 매일 06:30 KST (UTC 21:30 전날)
+  workflow_dispatch:          # 수동 실행 버튼
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25      # 소스가 막혀도 러너 시간을 무한정 태우지 않도록
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # 외부 의존성 없음 — Node 내장 fetch 만 사용하므로 npm install 생략
+
+      - name: 수식 자체검증 (합성 데이터 71종)
+        run: node scripts/test-stocks-math.js
+
+      - name: 파이프라인 엔드투엔드 검증 (가짜 API 응답 71종)
+        run: node scripts/test-stocks-e2e.js
+
+      - name: 소스 도달성 진단
+        continue-on-error: true
+        run: node scripts/probe-sources.js
+
+      - name: 주가·매크로 수집 및 이론 검증
+        # fred.stlouisfed.org(CSV)는 러너에서 차단되므로 공식 API 키를 쓴다.
+        # 키가 없으면 Yahoo 대체 지표로 4개 이론만 검증된다.
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: node scripts/fetch-stocks.js
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/stocks.json
+          git diff --staged --quiet && echo "변경 없음" && exit 0
+          git commit -m "chore: 테마주 이론 검증 데이터 자동수집 $(date +'%Y-%m-%d')"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push -u origin "HEAD:${{ github.ref_name }}"
