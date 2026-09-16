@@ -228,7 +228,10 @@ textarea.form-control{resize:vertical;min-height:80px}
           <select class="form-control" id="tCountry">
             <option>인도</option><option>베트남</option><option>태국</option>
             <option>필리핀</option><option>인도네시아</option><option>방글라데시</option>
-            <option>파키스탄</option><option>중국</option><option>기타</option>
+            <option>파키스탄</option><option>중국</option>
+            <option>프랑스</option><option>영국</option><option>독일</option><option>이탈리아</option>
+            <option>스페인</option><option>폴란드</option><option>네덜란드</option>
+            <option>기타</option>
           </select>
         </div>
         <div class="form-group">
@@ -675,6 +678,27 @@ const SOURCES = [
       { label: 'CCGP 중국정부조달망', url: 'http://www.ccgp.gov.cn/cggg/zygg/gkzb/' },
       { label: 'China International Tendering (영문)', url: 'http://en.chinabidding.mofcom.gov.cn/' },
     ] },
+  { country: '유럽 (EU 전역)', keyword: 'electricity meter OR gas meter OR water meter smart meter tender',
+    note: 'EU 임계값 이상 공고는 TED에 의무 게재되지만, 실제 응찰은 MID(계량기기지침) 인증·로컬 파트너·사이버복원력법(CRA) 대응이 선행돼야 해 인도·동남아처럼 조달포털 모니터링만으로 진입하기 어려움 — 완제품 입찰보다는 시장 리서치·부품 서플라이체인 참고용에 가까움',
+    links: [ { label: 'TED (Tenders Electronic Daily)', url: 'https://ted.europa.eu/en/' } ] },
+  { country: '프랑스', keyword: 'compteur électrique OR compteur gaz OR compteur eau appel offres',
+    note: '공고 검색은 BOAMP, 입찰 제출은 PLACE로 이원화',
+    links: [
+      { label: 'BOAMP (공고 검색)', url: 'https://www.boamp.fr/' },
+      { label: 'PLACE (입찰 제출)', url: 'https://www.marches-publics.gouv.fr/' },
+    ] },
+  { country: '영국', keyword: 'electricity meter OR gas meter OR water meter tender',
+    links: [ { label: 'Find a Tender', url: 'https://www.find-tender.service.gov.uk/' } ] },
+  { country: '독일', keyword: 'Stromzähler OR Gaszähler OR Wasserzähler Ausschreibung',
+    links: [ { label: 'DTVP (Deutsches Vergabeportal)', url: 'https://dtvp.de/' } ] },
+  { country: '이탈리아', keyword: 'contatore elettrico OR contatore gas OR contatore acqua gara',
+    links: [ { label: 'Acquisti in Rete (CONSIP/MEPA)', url: 'https://www.acquistinretepa.it/' } ] },
+  { country: '스페인', keyword: 'contador eléctrico OR contador de gas OR contador de agua licitación',
+    links: [ { label: 'PLACSP', url: 'https://contrataciondelestado.es/' } ] },
+  { country: '네덜란드', keyword: 'elektriciteitsmeter OR gasmeter OR watermeter aanbesteding',
+    links: [ { label: 'TenderNed', url: 'https://www.tenderned.nl/' } ] },
+  { country: '폴란드', keyword: 'licznik energii OR licznik gazu OR licznik wody przetarg',
+    links: [ { label: 'e-Zamówienia', url: 'https://ezamowienia.gov.pl/' } ] },
 ];
 function renderSources() {
   document.getElementById('topbarActions').innerHTML = '';
