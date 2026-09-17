@@ -1,1 +1,7 @@
 node_modules/
+tools/gemini-anki/study_log.md
+tools/gemini-anki/study_log_chinese.md
+tools/gemini-anki/study_log_english.md
+tools/gemini-anki/study_log_bi.md
+tools/gemini-anki/study_log_python.md
+__pycache__/
